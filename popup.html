@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloudbeds ID Scanner</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header con botón de opciones -->
+    <div class="header">
+      <h1>🪪 ID Scanner</h1>
+      <button id="toggleOptions" class="btn-icon" title="Opciones">⚙️</button>
+    </div>
+    <p class="subtitle">Escanea pasaportes, DNI o NIE</p>
+
+    <!-- Panel de opciones (oculto por defecto) -->
+    <div id="optionsPanel" class="options-panel hidden">
+      <div class="options-content">
+        <h3>⚙️ Configuración</h3>
+        <label for="apiKey">OpenAI API Key:</label>
+        <div class="input-group">
+          <input type="password" id="apiKey" placeholder="sk-..." />
+          <button id="toggleKey" class="btn-icon" title="Mostrar/Ocultar">👁️</button>
+        </div>
+        <button id="saveKey" class="btn btn-secondary btn-full">Guardar API Key</button>
+        <div id="keyStatus" class="status"></div>
+      </div>
+    </div>
+
+    <!-- Subir imagen -->
+    <div id="upload-section" class="section">
+      <div id="dropZone" class="drop-zone">
+        <span class="drop-icon">📄</span>
+        <p>Arrastra una imagen aquí</p>
+        <button id="selectFileBtn" class="btn btn-primary">Seleccionar archivo</button>
+        <input type="file" id="fileInput" accept="image/*" />
+      </div>
+      
+      <div id="preview" class="preview hidden">
+        <img id="previewImage" alt="Preview" />
+        <button id="clearImage" class="btn-icon" title="Eliminar">❌</button>
+      </div>
+    </div>
+
+    <!-- Botón principal -->
+    <button id="scanBtn" class="btn btn-success btn-large" disabled>
+      <span id="scanText">🔍 Escanear y Rellenar</span>
+      <span id="scanLoader" class="loader hidden"></span>
+    </button>
+
+    <!-- Resultados (opcional, para mostrar datos extraídos) -->
+    <div id="results" class="results hidden">
+      <details>
+        <summary>Ver datos extraídos</summary>
+        <div id="extractedData"></div>
+      </details>
+    </div>
+
+    <!-- Mensajes de estado -->
+    <div id="statusMessage" class="status-message hidden"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
