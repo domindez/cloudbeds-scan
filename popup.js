@@ -1,6 +1,10 @@
+// Configuración
+const OPENAI_MODEL = 'gpt-5-nano'; // Modelo de OpenAI para visión (más barato y rápido)
+
 // Estado de la aplicación
 let selectedImage = null;
 let selectedImages = []; // Para DNI español (2 imágenes)
+let imageToUpload = null; // Imagen que se subirá a Cloudbeds
 let extractedData = null;
 let isDniMode = false; // Modo DNI español (2 caras)
 
@@ -9,8 +13,6 @@ const apiKeyInput = document.getElementById('apiKey');
 const toggleKeyBtn = document.getElementById('toggleKey');
 const saveKeyBtn = document.getElementById('saveKey');
 const keyStatus = document.getElementById('keyStatus');
-const toggleOptionsBtn = document.getElementById('toggleOptions');
-const optionsPanel = document.getElementById('optionsPanel');
 const dropZone = document.getElementById('dropZone');
 const selectFileBtn = document.getElementById('selectFileBtn');
 const fileInput = document.getElementById('fileInput');
@@ -31,25 +33,53 @@ const scanText = document.getElementById('scanText');
 const scanLoader = document.getElementById('scanLoader');
 const results = document.getElementById('results');
 const extractedDataDiv = document.getElementById('extractedData');
+const tokenUsageDiv = document.getElementById('tokenUsage');
 const statusMessage = document.getElementById('statusMessage');
+
+// Elementos adicionales
+const uploadPhotoCheckbox = document.getElementById('uploadPhotoCheckbox');
 
 // Inicialización
 document.addEventListener('DOMContentLoaded', async () => {
-  // Cargar API Key guardada
-  const stored = await chrome.storage.local.get(['openaiApiKey', 'scanFolderName']);
+  // Cargar configuración guardada
+  const stored = await chrome.storage.local.get(['openaiApiKey', 'scanFolderName', 'uploadPhoto']);
   if (stored.openaiApiKey) {
     apiKeyInput.value = stored.openaiApiKey;
   }
   if (stored.scanFolderName) {
     scanFolderPath.textContent = stored.scanFolderName;
   }
+  // Por defecto está desactivado
+  uploadPhotoCheckbox.checked = stored.uploadPhoto === true;
+  
+  // Inicializar tabs
+  initTabs();
 });
 
-// Toggle panel de opciones
-toggleOptionsBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  optionsPanel.classList.toggle('hidden');
+// Guardar preferencia de subir foto
+uploadPhotoCheckbox.addEventListener('change', async () => {
+  await chrome.storage.local.set({ uploadPhoto: uploadPhotoCheckbox.checked });
 });
+
+// Manejo de pestañas
+function initTabs() {
+  const tabs = document.querySelectorAll('.tab');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      // Quitar active de todas las tabs
+      tabs.forEach(t => t.classList.remove('active'));
+      // Añadir active a la tab clickeada
+      tab.classList.add('active');
+      
+      // Mostrar contenido correspondiente
+      const tabId = tab.dataset.tab;
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+      });
+      document.getElementById(`tab-${tabId}`).classList.add('active');
+    });
+  });
+}
 
 // Toggle visibilidad de API Key
 toggleKeyBtn.addEventListener('click', () => {
@@ -71,11 +101,6 @@ saveKeyBtn.addEventListener('click', async () => {
   
   await chrome.storage.local.set({ openaiApiKey: apiKey });
   showKeyStatus('API Key guardada ✓', 'success');
-  
-  // Cerrar panel después de guardar
-  setTimeout(() => {
-    optionsPanel.classList.add('hidden');
-  }, 1000);
 });
 
 function showKeyStatus(message, type) {
@@ -107,9 +132,18 @@ dropZone.addEventListener('drop', (e) => {
 });
 
 // Click en botón de seleccionar archivo (no en el dropZone completo)
-selectFileBtn.addEventListener('click', (e) => {
+selectFileBtn.addEventListener('click', async (e) => {
   e.preventDefault();
   e.stopPropagation();
+  
+  // Verificar que estamos en modo edición
+  const editCheck = await checkEditMode();
+  if (!editCheck.isEditMode) {
+    const errorMsg = editCheck.error || 'Primero haz clic en "Editar detalles" en Cloudbeds';
+    showStatusMessage(`⚠️ ${errorMsg}`, 'error');
+    return;
+  }
+  
   fileInput.click();
 });
 
@@ -130,11 +164,12 @@ function handleImageFile(file) {
   const reader = new FileReader();
   reader.onload = (e) => {
     selectedImage = e.target.result;
+    imageToUpload = e.target.result; // Guardar para subir
     previewImage.src = selectedImage;
     preview.classList.remove('hidden');
     dropZone.classList.add('hidden');
     scanBtn.disabled = false;
-    scanText.textContent = '🔍 Escanear y Rellenar';
+    scanText.textContent = 'Escanear y rellenar';
     results.classList.add('hidden');
     hideStatusMessage();
   };
@@ -154,12 +189,15 @@ function handleDniImages(file1, file2) {
   
   Promise.all(promises).then(([img1, img2]) => {
     selectedImages = [img1, img2];
+    // Para DNI: la penúltima imagen (img2) es probablemente el anverso (se escanea primero)
+    // que es la que tiene la foto y es más útil para identificar al huésped
+    imageToUpload = img2;
     previewImage1.src = img1;
     previewImage2.src = img2;
     previewDni.classList.remove('hidden');
     dropZone.classList.add('hidden');
     scanBtn.disabled = false;
-    scanText.textContent = '🔍 Escanear DNI y Rellenar';
+    scanText.textContent = 'Escanear DNI y rellenar';
     results.classList.add('hidden');
     hideStatusMessage();
   });
@@ -186,16 +224,47 @@ clearDniImages.addEventListener('click', () => {
 function clearAllImages() {
   selectedImage = null;
   selectedImages = [];
+  imageToUpload = null;
   isDniMode = false;
   extractedData = null;
   preview.classList.add('hidden');
   previewDni.classList.add('hidden');
   dropZone.classList.remove('hidden');
   scanBtn.disabled = true;
-  scanText.textContent = '🔍 Escanear y Rellenar';
+  scanText.textContent = 'Escanear y rellenar';
   results.classList.add('hidden');
   fileInput.value = '';
   hideStatusMessage();
+}
+
+// Verificar si el formulario está en modo edición
+async function checkEditMode() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    if (!tab.url || !tab.url.includes('cloudbeds.com')) {
+      return { isEditMode: false, error: 'Esta página no es de Cloudbeds' };
+    }
+    
+    // Intentar enviar mensaje al content script
+    try {
+      const response = await chrome.tabs.sendMessage(tab.id, { action: 'checkEditMode' });
+      return response;
+    } catch (sendError) {
+      // Si falla, intentar inyectar el content script primero
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['municipios.js', 'content.js']
+      });
+      
+      // Esperar un momento y reintentar
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const response = await chrome.tabs.sendMessage(tab.id, { action: 'checkEditMode' });
+      return response;
+    }
+  } catch (error) {
+    return { isEditMode: false, error: 'Primero haz clic en "Editar detalles" en Cloudbeds' };
+  }
 }
 
 // Escanear Y Rellenar (todo en uno)
@@ -203,7 +272,6 @@ scanBtn.addEventListener('click', async () => {
   const stored = await chrome.storage.local.get(['openaiApiKey']);
   if (!stored.openaiApiKey) {
     showStatusMessage('Configura tu API Key de OpenAI en ⚙️', 'error');
-    optionsPanel.classList.remove('hidden');
     return;
   }
 
@@ -243,7 +311,6 @@ scanBtn.addEventListener('click', async () => {
     await fillCloudbedsForm(extractedData);
     
   } catch (error) {
-    console.error('Error:', error);
     showStatusMessage(`Error: ${error.message}`, 'error');
   } finally {
     setLoading(false);
@@ -252,12 +319,9 @@ scanBtn.addEventListener('click', async () => {
 
 // Rellenar formulario en Cloudbeds
 async function fillCloudbedsForm(data) {
-  console.log('🔵 [POPUP] Iniciando relleno de formulario');
-  
   try {
     // Obtener la pestaña activa
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    console.log('🔵 [POPUP] Tab activa:', tab.id, tab.url);
     
     if (!tab.url.includes('cloudbeds.com')) {
       throw new Error('Abre la página de Cloudbeds primero');
@@ -267,7 +331,6 @@ async function fillCloudbedsForm(data) {
     try {
       await chrome.tabs.sendMessage(tab.id, { action: 'ping' });
     } catch (pingError) {
-      console.log('🔵 [POPUP] Inyectando content script...');
       try {
         await chrome.scripting.executeScript({
           target: { tabId: tab.id },
@@ -279,19 +342,27 @@ async function fillCloudbedsForm(data) {
       }
     }
 
+    // Verificar si debe subir la imagen
+    const settings = await chrome.storage.local.get(['uploadPhoto']);
+    const shouldUploadImage = settings.uploadPhoto === true ? imageToUpload : null;
+
     // Enviar datos al content script
     const response = await chrome.tabs.sendMessage(tab.id, {
       action: 'fillGuestForm',
-      data: data
+      data: data,
+      imageToUpload: shouldUploadImage // Solo enviar si está activado
     });
 
     if (response && response.success) {
-      showStatusMessage(`✅ ¡Listo! ${response.filledCount || ''} campos rellenados`, 'success');
+      let message = `✅ ¡Listo! ${response.filledCount || ''} campos rellenados`;
+      if (response.photoUploaded) {
+        message += ' + foto subida';
+      }
+      showStatusMessage(message, 'success');
     } else {
       throw new Error(response?.error || 'Error al rellenar el formulario');
     }
   } catch (error) {
-    console.error('🔴 [POPUP] Error:', error);
     throw error;
   }
 }
@@ -332,7 +403,7 @@ IMPORTANTE:
       'Authorization': `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model: OPENAI_MODEL,
       messages: [
         {
           role: 'user',
@@ -341,15 +412,14 @@ IMPORTANTE:
             {
               type: 'image_url',
               image_url: {
-                url: imageBase64,
-                detail: 'high'
+                url: imageBase64
               }
             }
           ]
         }
       ],
-      max_tokens: 1000,
-      temperature: 0.1
+      max_completion_tokens: 1500,
+      reasoning_effort: 'minimal'
     })
   });
 
@@ -359,7 +429,23 @@ IMPORTANTE:
   }
 
   const data = await response.json();
-  const content = data.choices[0].message.content.trim();
+  
+  // Debug: ver estructura completa de la respuesta
+  console.log('Respuesta completa de OpenAI:', JSON.stringify(data, null, 2));
+  
+  // Guardar uso de tokens
+  const tokenUsage = data.usage || null;
+  
+  // GPT-5 puede tener el contenido en diferentes ubicaciones
+  const message = data.choices?.[0]?.message;
+  let content = message?.content || '';
+  
+  // Si content está vacío, buscar en output_text (nuevo formato)
+  if (!content && data.output_text) {
+    content = data.output_text;
+  }
+  
+  content = content.trim();
   
   // Limpiar el JSON si viene con markdown
   let jsonStr = content;
@@ -370,16 +456,23 @@ IMPORTANTE:
   }
   
   try {
-    return JSON.parse(jsonStr);
+    const result = JSON.parse(jsonStr);
+    result._tokenUsage = tokenUsage; // Añadir info de tokens
+    return result;
   } catch (e) {
-    console.error('JSON parse error:', jsonStr);
-    throw new Error('No se pudo parsear la respuesta de OpenAI');
+    console.log('Respuesta de OpenAI:', content);
+    throw new Error(`No se pudo parsear la respuesta: ${content.substring(0, 200)}...`);
   }
 }
 
 // Llamada a OpenAI Vision API para DNI español (2 imágenes: anverso y reverso)
 async function extractDataFromDniImages(apiKey, images) {
-  const prompt = `Analiza estas 2 imágenes de un DNI español (anverso y reverso, en cualquier orden) y extrae TODOS los datos visibles en formato JSON.
+  const prompt = `Analiza estas 2 imágenes y determina si son el anverso y reverso de un DNI español.
+
+PRIMERO verifica:
+1. ¿Es la primera imagen parte de un DNI español (anverso o reverso)?
+2. ¿Es la segunda imagen parte de un DNI español (anverso o reverso)?
+3. ¿Tienes AMBAS caras (anverso Y reverso)?
 
 El ANVERSO del DNI español contiene:
 - Foto del titular
@@ -398,9 +491,16 @@ El REVERSO del DNI español contiene:
 - Provincia
 - Lugar de nacimiento
 - Nombre de los padres
+- Código MRZ (zona de lectura mecánica)
 
 Devuelve SOLO un JSON válido con esta estructura exacta (sin markdown ni texto adicional):
 {
+  "validation": {
+    "isValidDni": true/false,
+    "hasAnverso": true/false,
+    "hasReverso": true/false,
+    "errorMessage": "mensaje de error si no es válido, null si es válido"
+  },
   "firstName": "nombre(s) de pila",
   "lastName": "primer apellido",
   "lastName2": "segundo apellido",
@@ -421,10 +521,11 @@ Devuelve SOLO un JSON válido con esta estructura exacta (sin markdown ni texto 
 }
 
 IMPORTANTE:
-- Extrae TODOS los datos de AMBAS imágenes y combínalos
+- Si las imágenes NO son un DNI español válido con ambas caras, pon isValidDni=false y describe el problema en errorMessage
+- Ejemplos de errores: "Solo se detectó el anverso, falta el reverso", "La imagen 1 no es un DNI español", "Ambas imágenes son el mismo lado del DNI"
+- Solo extrae los datos si isValidDni=true
 - La dirección está en el REVERSO del DNI
 - El número de soporte está en el ANVERSO, debajo de la fecha de validez
-- Asegúrate de extraer el código postal correctamente (5 dígitos)
 - Si algún dato no es legible, usa null`;
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -434,7 +535,7 @@ IMPORTANTE:
       'Authorization': `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model: OPENAI_MODEL,
       messages: [
         {
           role: 'user',
@@ -443,22 +544,20 @@ IMPORTANTE:
             {
               type: 'image_url',
               image_url: {
-                url: images[0],
-                detail: 'high'
+                url: images[0]
               }
             },
             {
               type: 'image_url',
               image_url: {
-                url: images[1],
-                detail: 'high'
+                url: images[1]
               }
             }
           ]
         }
       ],
-      max_tokens: 1200,
-      temperature: 0.1
+      max_completion_tokens: 2000,
+      reasoning_effort: 'minimal'
     })
   });
 
@@ -468,7 +567,17 @@ IMPORTANTE:
   }
 
   const data = await response.json();
-  const content = data.choices[0].message.content.trim();
+  
+  // Debug: ver estructura completa de la respuesta
+  console.log('Respuesta DNI completa de OpenAI:', JSON.stringify(data, null, 2));
+  
+  // Guardar uso de tokens
+  const tokenUsage = data.usage || null;
+  
+  // GPT-5 puede tener el contenido en diferentes ubicaciones
+  const message = data.choices?.[0]?.message;
+  let content = message?.content || '';
+  content = content.trim();
   
   // Limpiar el JSON si viene con markdown
   let jsonStr = content;
@@ -479,10 +588,33 @@ IMPORTANTE:
   }
   
   try {
-    return JSON.parse(jsonStr);
+    const result = JSON.parse(jsonStr);
+    
+    // Validar que sea un DNI español válido con ambas caras
+    if (result.validation) {
+      if (!result.validation.isValidDni) {
+        const errorMsg = result.validation.errorMessage || 'Las imágenes no corresponden a un DNI español válido';
+        throw new Error(`⚠️ ${errorMsg}`);
+      }
+      if (!result.validation.hasAnverso) {
+        throw new Error('⚠️ No se detectó el anverso del DNI (cara con la foto)');
+      }
+      if (!result.validation.hasReverso) {
+        throw new Error('⚠️ No se detectó el reverso del DNI (cara con la dirección)');
+      }
+      
+      // Eliminar el objeto validation del resultado final
+      delete result.validation;
+    }
+    
+    result._tokenUsage = tokenUsage; // Añadir info de tokens
+    return result;
   } catch (e) {
-    console.error('JSON parse error:', jsonStr);
-    throw new Error('No se pudo parsear la respuesta de OpenAI');
+    if (e.message.startsWith('⚠️')) {
+      throw e; // Re-lanzar errores de validación
+    }
+    console.log('Respuesta de OpenAI:', content);
+    throw new Error(`No se pudo parsear la respuesta: ${content.substring(0, 200)}...`);
   }
 }
 
@@ -519,6 +651,7 @@ function displayExtractedData(data) {
   extractedDataDiv.innerHTML = '';
   
   for (const [key, value] of Object.entries(data)) {
+    if (key === '_tokenUsage') continue; // Saltar campo interno de tokens
     if (value !== null && value !== '') {
       const row = document.createElement('div');
       row.className = 'data-row';
@@ -534,12 +667,26 @@ function displayExtractedData(data) {
       extractedDataDiv.appendChild(row);
     }
   }
+  
+  // Mostrar uso de tokens
+  if (data._tokenUsage) {
+    const usage = data._tokenUsage;
+    tokenUsageDiv.innerHTML = `
+      <div class="data-row"><span class="data-label">Tokens enviados</span><span class="data-value">${usage.prompt_tokens.toLocaleString()}</span></div>
+      <div class="data-row"><span class="data-label">Tokens recibidos</span><span class="data-value">${usage.completion_tokens.toLocaleString()}</span></div>
+      <div class="data-row"><span class="data-label">Total tokens</span><span class="data-value">${usage.total_tokens.toLocaleString()}</span></div>
+    `;
+  }
 }
 
 // Funciones auxiliares
 function setLoading(loading) {
   scanBtn.disabled = loading;
-  scanText.textContent = loading ? 'Procesando...' : '🔍 Escanear y Rellenar';
+  if (loading) {
+    scanText.textContent = 'Procesando...';
+  } else {
+    scanText.textContent = isDniMode ? 'Escanear DNI y rellenar' : 'Escanear y rellenar';
+  }
   scanLoader.classList.toggle('hidden', !loading);
 }
 
@@ -603,7 +750,6 @@ async function loadFolderHandle() {
       transaction.oncomplete = () => db.close();
     });
   } catch (error) {
-    console.error('Error loading folder handle:', error);
     return null;
   }
 }
@@ -634,7 +780,6 @@ async function initializeFolderHandle() {
   if (savedHandle) {
     scanFolderHandle = savedHandle;
     scanFolderPath.textContent = savedHandle.name;
-    console.log('Handle de carpeta recuperado:', savedHandle.name);
   }
 }
 
@@ -660,7 +805,6 @@ selectFolderBtn.addEventListener('click', async () => {
     showFolderStatus('Carpeta configurada ✓', 'success');
   } catch (error) {
     if (error.name !== 'AbortError') {
-      console.error('Error seleccionando carpeta:', error);
       showFolderStatus('Error al seleccionar carpeta', 'error');
     }
   }
@@ -698,6 +842,14 @@ loadScanBtn.addEventListener('click', async () => {
       return;
     }
     
+    // Verificar que estamos en modo edición
+    const editCheck = await checkEditMode();
+    if (!editCheck.isEditMode) {
+      const errorMsg = editCheck.error || 'Primero haz clic en "Editar detalles" en Cloudbeds';
+      showStatusMessage(`⚠️ ${errorMsg}`, 'error');
+      return;
+    }
+    
     showStatusMessage('Buscando último escaneo...', 'success');
     
     // Buscar el archivo más reciente en la carpeta
@@ -727,12 +879,10 @@ loadScanBtn.addEventListener('click', async () => {
     }
     
     // Cargar la imagen
-    console.log('Cargando archivo:', latestFile.name, 'Fecha:', new Date(latestFile.lastModified));
     handleImageFile(latestFile);
     hideStatusMessage();
     
   } catch (error) {
-    console.error('Error cargando escaneo:', error);
     showStatusMessage(`Error: ${error.message}`, 'error');
   }
 });
@@ -757,6 +907,14 @@ loadDniBtn.addEventListener('click', async () => {
     if (!hasPermission) {
       showStatusMessage('Permiso denegado. Configura la carpeta en ⚙️', 'error');
       optionsPanel.classList.remove('hidden');
+      return;
+    }
+    
+    // Verificar que estamos en modo edición
+    const editCheck = await checkEditMode();
+    if (!editCheck.isEditMode) {
+      const errorMsg = editCheck.error || 'Primero haz clic en "Editar detalles" en Cloudbeds';
+      showStatusMessage(`⚠️ ${errorMsg}`, 'error');
       return;
     }
     
@@ -790,14 +948,10 @@ loadDniBtn.addEventListener('click', async () => {
     const file1 = files[0];
     const file2 = files[1];
     
-    console.log('Cargando DNI - Imagen 1:', file1.name, 'Fecha:', new Date(file1.lastModified));
-    console.log('Cargando DNI - Imagen 2:', file2.name, 'Fecha:', new Date(file2.lastModified));
-    
     handleDniImages(file1, file2);
     hideStatusMessage();
     
   } catch (error) {
-    console.error('Error cargando escaneos DNI:', error);
     showStatusMessage(`Error: ${error.message}`, 'error');
   }
 });
