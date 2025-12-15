@@ -1,5 +1,5 @@
 // Configuración
-const OPENAI_MODEL = 'gpt-5-nano'; // Modelo de OpenAI para visión (más barato y rápido)
+const OPENAI_MODEL = 'gpt-4o-mini'; // Modelo de OpenAI para visión
 
 // Estado de la aplicación
 let selectedImage = null;
@@ -412,14 +412,15 @@ IMPORTANTE:
             {
               type: 'image_url',
               image_url: {
-                url: imageBase64
+                url: imageBase64,
+                detail: 'high'
               }
             }
           ]
         }
       ],
-      max_completion_tokens: 1500,
-      reasoning_effort: 'minimal'
+      max_tokens: 1000,
+      temperature: 0.1
     })
   });
 
@@ -430,22 +431,10 @@ IMPORTANTE:
 
   const data = await response.json();
   
-  // Debug: ver estructura completa de la respuesta
-  console.log('Respuesta completa de OpenAI:', JSON.stringify(data, null, 2));
-  
   // Guardar uso de tokens
   const tokenUsage = data.usage || null;
   
-  // GPT-5 puede tener el contenido en diferentes ubicaciones
-  const message = data.choices?.[0]?.message;
-  let content = message?.content || '';
-  
-  // Si content está vacío, buscar en output_text (nuevo formato)
-  if (!content && data.output_text) {
-    content = data.output_text;
-  }
-  
-  content = content.trim();
+  const content = data.choices[0].message.content.trim();
   
   // Limpiar el JSON si viene con markdown
   let jsonStr = content;
@@ -460,8 +449,7 @@ IMPORTANTE:
     result._tokenUsage = tokenUsage; // Añadir info de tokens
     return result;
   } catch (e) {
-    console.log('Respuesta de OpenAI:', content);
-    throw new Error(`No se pudo parsear la respuesta: ${content.substring(0, 200)}...`);
+    throw new Error('No se pudo parsear la respuesta de OpenAI');
   }
 }
 
@@ -544,20 +532,22 @@ IMPORTANTE:
             {
               type: 'image_url',
               image_url: {
-                url: images[0]
+                url: images[0],
+                detail: 'high'
               }
             },
             {
               type: 'image_url',
               image_url: {
-                url: images[1]
+                url: images[1],
+                detail: 'high'
               }
             }
           ]
         }
       ],
-      max_completion_tokens: 2000,
-      reasoning_effort: 'minimal'
+      max_tokens: 1200,
+      temperature: 0.1
     })
   });
 
@@ -568,16 +558,10 @@ IMPORTANTE:
 
   const data = await response.json();
   
-  // Debug: ver estructura completa de la respuesta
-  console.log('Respuesta DNI completa de OpenAI:', JSON.stringify(data, null, 2));
-  
   // Guardar uso de tokens
   const tokenUsage = data.usage || null;
   
-  // GPT-5 puede tener el contenido en diferentes ubicaciones
-  const message = data.choices?.[0]?.message;
-  let content = message?.content || '';
-  content = content.trim();
+  const content = data.choices[0].message.content.trim();
   
   // Limpiar el JSON si viene con markdown
   let jsonStr = content;
@@ -613,8 +597,7 @@ IMPORTANTE:
     if (e.message.startsWith('⚠️')) {
       throw e; // Re-lanzar errores de validación
     }
-    console.log('Respuesta de OpenAI:', content);
-    throw new Error(`No se pudo parsear la respuesta: ${content.substring(0, 200)}...`);
+    throw new Error('No se pudo parsear la respuesta de OpenAI');
   }
 }
 
