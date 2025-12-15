@@ -44,11 +44,13 @@ Descarga esta carpeta o clona el repositorio.
 ## 📖 Uso
 
 1. **Configura tu API Key:**
+
    - Haz clic en el icono de la extensión
    - Pega tu API Key de OpenAI
    - Haz clic en "Guardar API Key"
 
 2. **Escanea un documento:**
+
    - Arrastra una imagen de un documento o haz clic para seleccionar
    - Haz clic en "🔍 Escanear documento"
    - Espera unos segundos mientras se procesan los datos
@@ -61,6 +63,7 @@ Descarga esta carpeta o clona el repositorio.
 ## 💰 Costos
 
 Esta extensión usa el modelo `gpt-4o-mini` de OpenAI que es muy económico:
+
 - ~$0.00015 por imagen procesada (aproximadamente)
 - Puedes procesar miles de documentos por menos de $1
 
@@ -87,15 +90,18 @@ cloudbeds-scan/
 ## ⚠️ Solución de problemas
 
 ### "Error: Asegúrate de estar en la página de huésped de Cloudbeds"
+
 - Verifica que estás en `https://hotels.cloudbeds.com/...`
 - Asegúrate de estar en la pestaña de información del huésped
 
 ### "Error en la API de OpenAI"
+
 - Verifica que tu API Key sea correcta
 - Asegúrate de tener saldo en tu cuenta de OpenAI
 - Comprueba que la key no haya expirado
 
 ### Los campos no se rellenan
+
 - Intenta recargar la página de Cloudbeds
 - Verifica que el formulario de huésped esté visible
 

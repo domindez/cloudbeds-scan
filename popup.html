@@ -1,67 +1,105 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cloudbeds ID Scanner</title>
-  <link rel="stylesheet" href="popup.css">
-</head>
-<body>
-  <div class="container">
-    <!-- Header con botón de opciones -->
-    <div class="header">
-      <h1>🪪 ID Scanner</h1>
-      <button id="toggleOptions" class="btn-icon" title="Opciones">⚙️</button>
-    </div>
-    <p class="subtitle">Escanea pasaportes, DNI o NIE</p>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Cloudbeds ID Scanner</title>
+		<link rel="stylesheet" href="popup.css" />
+	</head>
+	<body>
+		<div class="container">
+			<!-- Header con botón de opciones -->
+			<div class="header">
+				<h1>🪪 ID Scanner</h1>
+				<button id="toggleOptions" class="btn-icon" title="Opciones">⚙️</button>
+			</div>
+			<p class="subtitle">Escanea pasaportes, DNI o NIE</p>
 
-    <!-- Panel de opciones (oculto por defecto) -->
-    <div id="optionsPanel" class="options-panel hidden">
-      <div class="options-content">
-        <h3>⚙️ Configuración</h3>
-        <label for="apiKey">OpenAI API Key:</label>
-        <div class="input-group">
-          <input type="password" id="apiKey" placeholder="sk-..." />
-          <button id="toggleKey" class="btn-icon" title="Mostrar/Ocultar">👁️</button>
-        </div>
-        <button id="saveKey" class="btn btn-secondary btn-full">Guardar API Key</button>
-        <div id="keyStatus" class="status"></div>
-      </div>
-    </div>
+			<!-- Panel de opciones (oculto por defecto) -->
+			<div id="optionsPanel" class="options-panel hidden">
+				<div class="options-content">
+					<h3>⚙️ Configuración</h3>
 
-    <!-- Subir imagen -->
-    <div id="upload-section" class="section">
-      <div id="dropZone" class="drop-zone">
-        <span class="drop-icon">📄</span>
-        <p>Arrastra una imagen aquí</p>
-        <button id="selectFileBtn" class="btn btn-primary">Seleccionar archivo</button>
-        <input type="file" id="fileInput" accept="image/*" />
-      </div>
-      
-      <div id="preview" class="preview hidden">
-        <img id="previewImage" alt="Preview" />
-        <button id="clearImage" class="btn-icon" title="Eliminar">❌</button>
-      </div>
-    </div>
+					<label for="apiKey">OpenAI API Key:</label>
+					<div class="input-group">
+						<input type="password" id="apiKey" placeholder="sk-..." />
+						<button id="toggleKey" class="btn-icon" title="Mostrar/Ocultar">👁️</button>
+					</div>
+					<button id="saveKey" class="btn btn-secondary btn-full">Guardar API Key</button>
+					<div id="keyStatus" class="status"></div>
 
-    <!-- Botón principal -->
-    <button id="scanBtn" class="btn btn-success btn-large" disabled>
-      <span id="scanText">🔍 Escanear y Rellenar</span>
-      <span id="scanLoader" class="loader hidden"></span>
-    </button>
+					<hr class="options-divider" />
 
-    <!-- Resultados (opcional, para mostrar datos extraídos) -->
-    <div id="results" class="results hidden">
-      <details>
-        <summary>Ver datos extraídos</summary>
-        <div id="extractedData"></div>
-      </details>
-    </div>
+					<label>Carpeta de escaneos (Brother):</label>
+					<div id="scanFolderPath" class="folder-path">No configurada</div>
+					<button id="selectFolderBtn" class="btn btn-secondary btn-full">📂 Seleccionar carpeta</button>
+					<div id="folderStatus" class="status"></div>
+				</div>
+			</div>
 
-    <!-- Mensajes de estado -->
-    <div id="statusMessage" class="status-message hidden"></div>
-  </div>
+			<!-- Subir imagen -->
+			<div id="upload-section" class="section">
+				<div id="dropZone" class="drop-zone">
+					<span class="drop-icon">📄</span>
+					<p>Arrastra una imagen o usa el escáner</p>
+					<div class="button-row">
+						<button id="selectFileBtn" class="btn btn-primary btn-small">📁 Archivo</button>
+						<button id="loadScanBtn" class="btn btn-secondary btn-small" title="Cargar último escaneo (1 imagen)">
+							🖨️ Escáner
+						</button>
+					</div>
+					<div class="button-row" style="margin-top: 8px">
+						<button
+							id="loadDniBtn"
+							class="btn btn-dni btn-full"
+							title="Cargar 2 últimos escaneos para DNI español (anverso y reverso)"
+						>
+							🪪 DNI Español (2 caras)
+						</button>
+					</div>
+					<input type="file" id="fileInput" accept="image/*" />
+				</div>
 
-  <script src="popup.js"></script>
-</body>
+				<div id="preview" class="preview hidden">
+					<img id="previewImage" alt="Preview" />
+					<span id="previewLabel" class="preview-label hidden"></span>
+					<button id="clearImage" class="btn-icon" title="Eliminar">❌</button>
+				</div>
+
+				<!-- Preview para DNI (2 imágenes) -->
+				<div id="previewDni" class="preview-dni hidden">
+					<div class="dni-images">
+						<div class="dni-image-container">
+							<img id="previewImage1" alt="Cara 1" />
+							<span class="dni-label">Imagen 1</span>
+						</div>
+						<div class="dni-image-container">
+							<img id="previewImage2" alt="Cara 2" />
+							<span class="dni-label">Imagen 2</span>
+						</div>
+					</div>
+					<button id="clearDniImages" class="btn-icon btn-clear-dni" title="Eliminar">❌</button>
+				</div>
+			</div>
+
+			<!-- Botón principal -->
+			<button id="scanBtn" class="btn btn-success btn-large" disabled>
+				<span id="scanText">🔍 Escanear y Rellenar</span>
+				<span id="scanLoader" class="loader hidden"></span>
+			</button>
+
+			<!-- Resultados (opcional, para mostrar datos extraídos) -->
+			<div id="results" class="results hidden">
+				<details>
+					<summary>Ver datos extraídos</summary>
+					<div id="extractedData"></div>
+				</details>
+			</div>
+
+			<!-- Mensajes de estado -->
+			<div id="statusMessage" class="status-message hidden"></div>
+		</div>
+
+		<script src="popup.js"></script>
+	</body>
 </html>

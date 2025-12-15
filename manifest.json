@@ -1,27 +1,20 @@
 {
-  "manifest_version": 3,
-  "name": "Cloudbeds ID Scanner",
-  "version": "1.0.1",
-  "description": "Escanea documentos de identidad (pasaporte, DNI, etc.) y rellena automáticamente los datos del huésped en Cloudbeds",
-  "permissions": [
-    "activeTab",
-    "storage",
-    "scripting"
-  ],
-  "host_permissions": [
-    "https://*.cloudbeds.com/*",
-    "https://api.openai.com/*"
-  ],
-  "action": {
-    "default_popup": "popup.html",
-    "default_title": "Cloudbeds ID Scanner"
-  },
-  "content_scripts": [
-    {
-      "matches": ["https://*.cloudbeds.com/*"],
-      "js": ["content.js"],
-      "css": ["content.css"],
-      "run_at": "document_idle"
-    }
-  ]
+	"manifest_version": 3,
+	"name": "Cloudbeds ID Scanner",
+	"version": "1.0.1",
+	"description": "Escanea documentos de identidad (pasaporte, DNI, etc.) y rellena automáticamente los datos del huésped en Cloudbeds",
+	"permissions": ["activeTab", "storage", "scripting"],
+	"host_permissions": ["https://*.cloudbeds.com/*", "https://api.openai.com/*"],
+	"action": {
+		"default_popup": "popup.html",
+		"default_title": "Cloudbeds ID Scanner"
+	},
+	"content_scripts": [
+		{
+			"matches": ["https://*.cloudbeds.com/*"],
+			"js": ["content.js"],
+			"css": ["content.css"],
+			"run_at": "document_idle"
+		}
+	]
 }

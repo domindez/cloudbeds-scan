@@ -71,7 +71,7 @@ async function fillGuestForm(data) {
   await sleep(300);
   
   // Rellenar los campos
-  const filledCount = doFillForm(data);
+  const filledCount = await doFillForm(data);
   
   return { success: true, filledCount };
 }
@@ -129,7 +129,7 @@ async function clickEditButtonIfNeeded() {
 }
 
 // Rellenar los campos del formulario
-function doFillForm(data) {
+async function doFillForm(data) {
   let filledCount = 0;
   
   // Preprocesar datos: combinar apellidos en uno solo
@@ -142,6 +142,31 @@ function doFillForm(data) {
   // Copiar documentNumber al campo fiscal (NIF)
   if (processedData.documentNumber) {
     processedData.taxId = processedData.documentNumber;
+  }
+  
+  // Detectar si es español
+  const isSpanish = isSpanishPerson(processedData);
+  console.log('🇪🇸 ¿Es español?:', isSpanish);
+  
+  // Para NO españoles: dirección = nombre del país, código postal = "SN"
+  // Para españoles: usar la dirección y código postal extraídos del DNI (si existen)
+  if (!isSpanish) {
+    // Obtener el nombre del país para la dirección
+    const countryName = getCountryName(processedData.nationality || processedData.issuingCountry || processedData.country);
+    if (countryName) {
+      processedData.address = countryName;
+      console.log('🌍 Dirección para no español:', countryName);
+    }
+    processedData.zipCode = 'SN';
+    console.log('📮 Código postal para no español: SN');
+  } else {
+    // Para españoles: verificar que tenemos dirección y código postal del DNI
+    if (processedData.address) {
+      console.log('🏠 Dirección española del DNI:', processedData.address);
+    }
+    if (processedData.zipCode) {
+      console.log('📮 Código postal español del DNI:', processedData.zipCode);
+    };
   }
   
   console.log('📋 Datos procesados:', processedData);
@@ -224,15 +249,28 @@ function doFillForm(data) {
       '#guest_address1',
       'input[id*="address"]'
     ],
+    zipCode: [
+      'input[name="guest_zip"]',
+      '#guest_zip',
+      'input[id*="zip"]',
+      'input[name*="postal"]'
+    ],
     city: [
       'input[name="guest_city"]',
       '#guest_city',
       'input[id*="city"]'
     ],
+    // IMPORTANTE: country debe ir ANTES de province porque Cloudbeds carga las provincias según el país
     country: [
       'select[name="guest_country"]',
       '#guest_country',
       'select[id*="country"]:not([id*="issuing"])'
+    ],
+    province: [
+      'select[name="guest_state"]',
+      '#guest_state',
+      'select.country-states',
+      'select[id*="state"]'
     ]
   };
   
@@ -240,6 +278,8 @@ function doFillForm(data) {
   for (const [dataKey, selectors] of Object.entries(fieldMappings)) {
     const value = processedData[dataKey];
     if (!value) continue;
+    
+    console.log(`🔄 Procesando campo: ${dataKey} = "${value}"`);
     
     // Manejo especial para fecha de nacimiento (tiene 2 inputs en Cloudbeds)
     if (dataKey === 'birthDate') {
@@ -250,11 +290,14 @@ function doFillForm(data) {
     let element = null;
     for (const selector of selectors) {
       element = document.querySelector(selector);
-      if (element) break;
+      if (element) {
+        console.log(`📍 Elemento encontrado con selector: ${selector}`);
+        break;
+      }
     }
     
     if (!element) {
-      console.log(`⚠️ Campo no encontrado: ${dataKey}`);
+      console.log(`⚠️ Campo no encontrado: ${dataKey} (selectores probados: ${selectors.join(', ')})`);
       continue;
     }
     
@@ -271,6 +314,12 @@ function doFillForm(data) {
       if (setSelectValue(element, value)) {
         filledCount++;
         console.log(`✅ ${dataKey}: ${value}`);
+        
+        // Si es el país, esperar a que se carguen las provincias
+        if (dataKey === 'country') {
+          console.log('⏳ Esperando carga de provincias...');
+          await sleep(500);
+        }
       }
     } else if (tagName === 'input') {
       // Manejo especial para campos de fecha
@@ -474,12 +523,14 @@ function setDateValue(input, value, fieldName) {
 // Establecer valor en un select
 function setSelectValue(select, value) {
   const valueLower = value.toLowerCase().trim();
+  console.log(`🔍 setSelectValue: buscando "${value}" (lower: "${valueLower}") en select:`, select.name || select.id);
   
   // Buscar opción por valor exacto
   for (const option of select.options) {
     if (option.value.toLowerCase() === valueLower) {
       select.value = option.value;
       triggerChange(select);
+      console.log(`✅ Encontrado por valor exacto: ${option.value}`);
       return true;
     }
   }
@@ -545,14 +596,151 @@ function setSelectValue(select, value) {
     }
   }
   
+  // Mapeo especial para provincias españolas (normalizar nombres)
+  const provinceMap = {
+    'alava': 'Álava',
+    'araba': 'Álava',
+    'vitoria': 'Álava',
+    'albacete': 'Albacete',
+    'alicante': 'Alicante',
+    'alacant': 'Alicante',
+    'almeria': 'Almería',
+    'almería': 'Almería',
+    'asturias': 'Asturias',
+    'oviedo': 'Asturias',
+    'avila': 'Ávila',
+    'ávila': 'Ávila',
+    'badajoz': 'Badajoz',
+    'barcelona': 'Barcelona',
+    'burgos': 'Burgos',
+    'cantabria': 'Cantabria',
+    'santander': 'Cantabria',
+    'castellon': 'Castellón',
+    'castellón': 'Castellón',
+    'castello': 'Castellón',
+    'ceuta': 'Ceuta',
+    'ciudad real': 'Ciudad Real',
+    'cuenca': 'Cuenca',
+    'caceres': 'Cáceres',
+    'cáceres': 'Cáceres',
+    'cadiz': 'Cádiz',
+    'cádiz': 'Cádiz',
+    'cordoba': 'Córdoba',
+    'córdoba': 'Córdoba',
+    'gerona': 'Gerona',
+    'girona': 'Gerona',
+    'granada': 'Granada',
+    'guadalajara': 'Guadalajara',
+    'guipuzcoa': 'Guipúzcoa',
+    'guipúzcoa': 'Guipúzcoa',
+    'gipuzkoa': 'Guipúzcoa',
+    'san sebastian': 'Guipúzcoa',
+    'donostia': 'Guipúzcoa',
+    'huelva': 'Huelva',
+    'huesca': 'Huesca',
+    'baleares': 'Islas Baleares',
+    'islas baleares': 'Islas Baleares',
+    'illes balears': 'Islas Baleares',
+    'mallorca': 'Islas Baleares',
+    'palma': 'Islas Baleares',
+    'jaen': 'Jaén',
+    'jaén': 'Jaén',
+    'coruña': 'La Coruña',
+    'la coruña': 'La Coruña',
+    'a coruña': 'La Coruña',
+    'rioja': 'La Rioja',
+    'la rioja': 'La Rioja',
+    'logroño': 'La Rioja',
+    'las palmas': 'Las Palmas',
+    'gran canaria': 'Las Palmas',
+    'leon': 'León',
+    'león': 'León',
+    'lugo': 'Lugo',
+    'lerida': 'Lérida',
+    'lérida': 'Lérida',
+    'lleida': 'Lérida',
+    'madrid': 'Madrid',
+    'melilla': 'Melilla',
+    'murcia': 'Murcia',
+    'malaga': 'Málaga',
+    'málaga': 'Málaga',
+    'navarra': 'Navarra',
+    'pamplona': 'Navarra',
+    'orense': 'Orense',
+    'ourense': 'Orense',
+    'palencia': 'Palencia',
+    'pontevedra': 'Pontevedra',
+    'vigo': 'Pontevedra',
+    'salamanca': 'Salamanca',
+    'santa cruz': 'Santa Cruz',
+    'tenerife': 'Santa Cruz',
+    'santa cruz de tenerife': 'Santa Cruz',
+    'segovia': 'Segovia',
+    'sevilla': 'Sevilla',
+    'soria': 'Soria',
+    'tarragona': 'Tarragona',
+    'teruel': 'Teruel',
+    'toledo': 'Toledo',
+    'valencia': 'Valencia',
+    'valència': 'Valencia',
+    'valladolid': 'Valladolid',
+    'vizcaya': 'Vizcaya',
+    'bizkaia': 'Vizcaya',
+    'bilbao': 'Vizcaya',
+    'zamora': 'Zamora',
+    'zaragoza': 'Zaragoza'
+  };
+  
+  // Intentar mapear provincia
+  const normalizedProvince = provinceMap[valueLower];
+  if (normalizedProvince) {
+    for (const option of select.options) {
+      if (option.value === normalizedProvince || option.text === normalizedProvince) {
+        select.value = option.value;
+        triggerChange(select);
+        console.log(`🏛️ Provincia mapeada: ${value} → ${normalizedProvince}`);
+        return true;
+      }
+    }
+  }
+  
   console.warn(`⚠️ No se encontró opción para: ${value}`);
   return false;
 }
 
-// Disparar evento change
+// Disparar evento change y actualizar displays estáticos de Cloudbeds
 function triggerChange(element) {
   element.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
   element.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+  
+  // Cloudbeds usa divs estáticos para mostrar valores de selects
+  // Buscar y actualizar el div de display asociado
+  if (element.tagName.toLowerCase() === 'select') {
+    const selectedText = element.options[element.selectedIndex]?.text || '';
+    const fieldName = element.name || element.id;
+    
+    // Buscar div de display por data-hook (patrón común en Cloudbeds)
+    const hookName = fieldName.replace('guest_', '') + '-text-value';
+    let displayDiv = document.querySelector(`[data-hook="guest-${hookName}"]`);
+    
+    // Si no encuentra, buscar por patrones alternativos
+    if (!displayDiv) {
+      displayDiv = document.querySelector(`[data-hook="${fieldName}-text-value"]`);
+    }
+    
+    // Buscar en el mismo contenedor form-group
+    if (!displayDiv) {
+      const formGroup = element.closest('.form-group');
+      if (formGroup) {
+        displayDiv = formGroup.querySelector('.form-control-static');
+      }
+    }
+    
+    if (displayDiv && selectedText) {
+      displayDiv.textContent = selectedText;
+      console.log(`🔄 Display actualizado: ${fieldName} → "${selectedText}"`);
+    }
+  }
 }
 
 // Habilitar campos de documento
@@ -623,6 +811,106 @@ function showNotification(message) {
 // Función auxiliar para esperar
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Detectar si la persona es española
+function isSpanishPerson(data) {
+  const spanishIndicators = [
+    'españa', 'spain', 'spanish', 'español', 'española',
+    'es' // código ISO
+  ];
+  
+  // Comprobar nacionalidad
+  const nationality = (data.nationality || '').toLowerCase().trim();
+  if (spanishIndicators.some(ind => nationality === ind || nationality.includes(ind))) {
+    return true;
+  }
+  
+  // Comprobar país expedidor
+  const issuingCountry = (data.issuingCountry || '').toLowerCase().trim();
+  if (issuingCountry === 'es' || spanishIndicators.some(ind => issuingCountry === ind)) {
+    return true;
+  }
+  
+  // Comprobar país de residencia
+  const country = (data.country || '').toLowerCase().trim();
+  if (country === 'es' || spanishIndicators.some(ind => country === ind)) {
+    return true;
+  }
+  
+  // Comprobar tipo de documento (DNI es español)
+  const docType = (data.documentType || '').toLowerCase().trim();
+  if (docType === 'dni') {
+    return true;
+  }
+  
+  return false;
+}
+
+// Obtener nombre del país a partir de la nacionalidad o código
+function getCountryName(value) {
+  if (!value) return null;
+  
+  const valueLower = value.toLowerCase().trim();
+  
+  // Mapeo de códigos ISO a nombres de países
+  const countryMap = {
+    'es': 'España',
+    'fr': 'Francia',
+    'de': 'Alemania',
+    'it': 'Italia',
+    'pt': 'Portugal',
+    'gb': 'Reino Unido',
+    'uk': 'Reino Unido',
+    'us': 'Estados Unidos',
+    'mx': 'México',
+    'ar': 'Argentina',
+    'co': 'Colombia',
+    'cl': 'Chile',
+    'pe': 'Perú',
+    've': 'Venezuela',
+    'br': 'Brasil',
+    'cn': 'China',
+    'jp': 'Japón',
+    'kr': 'Corea del Sur',
+    'in': 'India',
+    'ru': 'Rusia',
+    'nl': 'Países Bajos',
+    'be': 'Bélgica',
+    'ch': 'Suiza',
+    'at': 'Austria',
+    'pl': 'Polonia',
+    'se': 'Suecia',
+    'no': 'Noruega',
+    'dk': 'Dinamarca',
+    'fi': 'Finlandia',
+    'ie': 'Irlanda',
+    'gr': 'Grecia',
+    'cz': 'República Checa',
+    'ro': 'Rumania',
+    'hu': 'Hungría',
+    'ma': 'Marruecos',
+    'eg': 'Egipto',
+    'za': 'Sudáfrica',
+    'au': 'Australia',
+    'nz': 'Nueva Zelanda',
+    'ca': 'Canadá'
+  };
+  
+  // Si es un código ISO de 2 letras
+  if (valueLower.length === 2 && countryMap[valueLower]) {
+    return countryMap[valueLower];
+  }
+  
+  // Si ya es un nombre de país, devolverlo capitalizado
+  if (value.length > 2) {
+    // Capitalizar primera letra de cada palabra
+    return value.split(' ').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+  }
+  
+  return value;
 }
 
 // Marcar que el content script está listo
