@@ -7,6 +7,7 @@ Thank you for your interest in contributing to Cloudbeds ID Scanner!
 ### Reporting bugs
 
 If you find a bug, please open an issue including:
+
 - Clear description of the problem
 - Steps to reproduce
 - Expected vs actual behavior
@@ -16,6 +17,7 @@ If you find a bug, please open an issue including:
 ### Suggesting improvements
 
 Suggestions are welcome! Open an issue with:
+
 - Description of the improvement
 - Use case
 - Possible implementation (if you have one)

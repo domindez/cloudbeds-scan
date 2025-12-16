@@ -20,6 +20,7 @@ A Chrome extension that scans identity documents (ID cards, passports, driver's 
 ### From source code
 
 1. Clone this repository:
+
    ```bash
    git clone https://github.com/domindez/cloudbeds-scan.git
    ```

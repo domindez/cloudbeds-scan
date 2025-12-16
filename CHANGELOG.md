@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2024-12-16
 
 ### Added
+
 - Identity document scanning using OpenAI Vision API
 - Support for Spanish DNI and NIE (2 sides: front and back)
 - Support for passports and other single-sided documents
@@ -20,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Postal code inference based on Spanish addresses
 
 ### Technical features
+
 - OpenAI GPT-5-mini integration
 - File System Access API support
 - Local configuration storage
