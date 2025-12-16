@@ -323,6 +323,13 @@ async function doFillForm(data) {
       continue;
     }
     
+    // Manejo especial para nacionalidad (typeahead con lista de países)
+    if (dataKey === 'nationality') {
+      const nationalityFilled = await fillNationalityField(value);
+      if (nationalityFilled) filledCount++;
+      continue;
+    }
+    
     let element = null;
     for (const selector of selectors) {
       element = document.querySelector(selector);
@@ -549,6 +556,109 @@ async function fillMunicipalityField(city, province) {
   }
   
   return false;
+}
+
+// Busca en el array de countries.js el país que más se parezca
+async function fillNationalityField(nationality) {
+  
+  // Verificar que tenemos el array de países
+  if (typeof countries === 'undefined' || !Array.isArray(countries)) {
+    return false;
+  }
+  
+  // Buscar el input de nacionalidad
+  const nationalityInput = document.querySelector(
+    'input[name="nationality"], ' +
+    'input[data-field-type="dataset"][data-requirement-dataset-id="1"]'
+  );
+  
+  if (!nationalityInput) {
+    return false;
+  }
+  
+  // Normalizar texto (quitar acentos, minúsculas)
+  const normalizeText = (text) => {
+    return text.toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+  };
+  
+  const nationalityNormalized = normalizeText(nationality);
+  
+  // Primero buscar en los alias (traducciones español -> inglés, gentilicios, etc.)
+  if (typeof countryAliases !== 'undefined') {
+    const aliasMatch = countryAliases[nationalityNormalized];
+    if (aliasMatch) {
+      return setNationalityValue(nationalityInput, aliasMatch);
+    }
+  }
+  
+  // Buscar coincidencia directa o parcial en la lista de países
+  let bestMatch = null;
+  let bestScore = 0;
+  
+  for (const country of countries) {
+    const countryNormalized = normalizeText(country);
+    
+    let score = 0;
+    
+    // Coincidencia exacta
+    if (countryNormalized === nationalityNormalized) {
+      score = 100;
+    }
+    // El país contiene la nacionalidad buscada
+    else if (countryNormalized.includes(nationalityNormalized)) {
+      score = 80;
+    }
+    // La nacionalidad contiene el nombre del país
+    else if (nationalityNormalized.includes(countryNormalized)) {
+      score = 70;
+    }
+    // Similitud parcial (primeras letras)
+    else if (countryNormalized.startsWith(nationalityNormalized.substring(0, 4))) {
+      score = 50;
+    }
+    // Coincidencia de primeras 3 letras
+    else if (countryNormalized.substring(0, 3) === nationalityNormalized.substring(0, 3)) {
+      score = 30;
+    }
+    
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = country;
+    }
+  }
+  
+  if (bestMatch && bestScore >= 50) {
+    return setNationalityValue(nationalityInput, bestMatch);
+  }
+  
+  return false;
+}
+
+// Establecer el valor en el campo de nacionalidad
+function setNationalityValue(input, value) {
+  // Habilitar el campo si está deshabilitado
+  input.disabled = false;
+  input.readOnly = false;
+  
+  // Establecer el valor directamente
+  input.value = value;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+  input.dispatchEvent(new Event('blur', { bubbles: true }));
+  
+  // Actualizar el div estático si existe
+  const formGroup = input.closest('.form-group');
+  if (formGroup) {
+    const staticDiv = formGroup.querySelector('.form-control-static');
+    if (staticDiv) {
+      staticDiv.textContent = value;
+    }
+  }
+  
+  return true;
 }
 
 // Establecer valor en un input

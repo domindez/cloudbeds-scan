@@ -254,7 +254,7 @@ async function checkEditMode() {
       // Si falla, intentar inyectar el content script primero
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        files: ['municipios.js', 'content.js']
+        files: ['countries.js', 'municipios.js', 'content.js']
       });
       
       // Esperar un momento y reintentar
@@ -334,7 +334,7 @@ async function fillCloudbedsForm(data) {
       try {
         await chrome.scripting.executeScript({
           target: { tabId: tab.id },
-          files: ['content.js']
+          files: ['countries.js', 'municipios.js', 'content.js']
         });
         await new Promise(r => setTimeout(r, 500));
       } catch (injectError) {
@@ -378,7 +378,7 @@ Devuelve SOLO un JSON válido con esta estructura exacta (sin markdown ni texto 
   "lastName2": "segundo apellido (si aplica)",
   "birthDate": "fecha de nacimiento en formato DD/MM/YYYY",
   "gender": "M para masculino, F para femenino, o null si no está claro",
-  "nationality": "nacionalidad (nombre del país en español)",
+  "nationality": "nacionalidad (nombre del país en INGLÉS, ej: Spain, Germany, France)",
   "documentType": "passport, dni, nie, o driver_licence",
   "documentNumber": "número del documento",
   "issueDate": "fecha de emisión en formato DD/MM/YYYY",
@@ -394,7 +394,7 @@ IMPORTANTE:
 - Para documentos españoles, el DNI tiene 8 números y una letra
 - El NIE tiene una letra inicial (X, Y, Z), 7 números y una letra final
 - Extrae los datos exactamente como aparecen en el documento
-- Si el documento está en otro idioma, traduce la nacionalidad al español`;
+- La nacionalidad SIEMPRE debe estar en inglés (ej: Spain, Germany, France, Italy)`;
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -494,7 +494,7 @@ Devuelve SOLO un JSON válido con esta estructura exacta (sin markdown ni texto 
   "lastName2": "segundo apellido",
   "birthDate": "fecha de nacimiento en formato DD/MM/YYYY",
   "gender": "M para masculino, F para femenino",
-  "nationality": "España",
+  "nationality": "Spain",
   "documentType": "dni",
   "documentNumber": "número del DNI (8 números + letra)",
   "issueDate": "fecha de expedición en formato DD/MM/YYYY (si visible)",
