@@ -90,6 +90,60 @@
 				<div id="statusMessage" class="status-message hidden"></div>
 			</div>
 
+			<!-- Vista de progreso (se muestra al escanear) -->
+			<div id="progressView" class="progress-view hidden">
+				<div class="progress-header">
+					<h3>Procesando documento</h3>
+				</div>
+
+				<div class="progress-steps">
+					<div id="step1" class="step">
+						<div class="step-icon">⏳</div>
+						<div class="step-content">
+							<div class="step-title">Verificando formulario</div>
+							<div class="step-description">Comprobando modo edición...</div>
+						</div>
+					</div>
+
+					<div id="step2" class="step pending">
+						<div class="step-icon">⏳</div>
+						<div class="step-content">
+							<div class="step-title">Analizando documento</div>
+							<div class="step-description">Enviando imagen a OpenAI...</div>
+						</div>
+					</div>
+
+					<div id="step3" class="step pending">
+						<div class="step-icon">⏳</div>
+						<div class="step-content">
+							<div class="step-title">Rellenando formulario</div>
+							<div class="step-description">Completando campos en Cloudbeds...</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Botones finales -->
+				<div id="progressActions" class="progress-actions hidden">
+					<button id="scanAnotherBtn" class="btn btn-action"><span>🪪</span> Escanear otro documento</button>
+				</div>
+				<!-- Botones de error -->
+				<div id="errorActions" class="progress-actions hidden">
+					<button id="retryBtn" class="btn btn-action"><span>🔄</span> Reintentar</button>
+					<button id="cancelBtn" class="btn btn-secondary btn-full">Cancelar</button>
+				</div>
+				<!-- Datos extraídos (colapsable) -->
+				<div id="progressData" class="progress-data hidden">
+					<details>
+						<summary>📋 Ver datos extraídos</summary>
+						<div id="progressExtractedData" class="extracted-data-grid"></div>
+					</details>
+					<details>
+						<summary>📊 Uso de tokens</summary>
+						<div id="progressTokenUsage" class="token-usage"></div>
+					</details>
+				</div>
+			</div>
+
 			<!-- Tab Content: Ajustes -->
 			<div id="tab-settings" class="tab-content">
 				<div class="settings-section">

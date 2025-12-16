@@ -36,6 +36,20 @@ const extractedDataDiv = document.getElementById('extractedData');
 const tokenUsageDiv = document.getElementById('tokenUsage');
 const statusMessage = document.getElementById('statusMessage');
 
+// Elementos de la vista de progreso
+const progressView = document.getElementById('progressView');
+const step1 = document.getElementById('step1');
+const step2 = document.getElementById('step2');
+const step3 = document.getElementById('step3');
+const progressActions = document.getElementById('progressActions');
+const scanAnotherBtn = document.getElementById('scanAnotherBtn');
+const errorActions = document.getElementById('errorActions');
+const retryBtn = document.getElementById('retryBtn');
+const cancelBtn = document.getElementById('cancelBtn');
+const progressData = document.getElementById('progressData');
+const progressExtractedData = document.getElementById('progressExtractedData');
+const progressTokenUsage = document.getElementById('progressTokenUsage');
+
 // Elementos adicionales
 const uploadPhotoCheckbox = document.getElementById('uploadPhotoCheckbox');
 
@@ -59,6 +73,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Guardar preferencia de subir foto
 uploadPhotoCheckbox.addEventListener('change', async () => {
   await chrome.storage.local.set({ uploadPhoto: uploadPhotoCheckbox.checked });
+});
+
+// Escanear otro documento
+scanAnotherBtn.addEventListener('click', () => {
+  hideProgressView();
+  clearAllImages();
+});
+
+// Reintentar tras error
+retryBtn.addEventListener('click', async () => {
+  // Resetear y volver a intentar
+  resetProgressSteps();
+  progressActions.classList.add('hidden');
+  errorActions.classList.add('hidden');
+  progressData.classList.add('hidden');
+  
+  // Simular click en el botón de escanear
+  scanBtn.click();
+});
+
+// Cancelar y volver
+cancelBtn.addEventListener('click', () => {
+  hideProgressView();
 });
 
 // Manejo de pestañas
@@ -288,32 +325,62 @@ scanBtn.addEventListener('click', async () => {
     }
   }
 
-  setLoading(true);
-  hideStatusMessage();
-
+  // Mostrar vista de progreso
+  showProgressView();
+  
   try {
-    // Paso 1: Extraer datos con OpenAI
-    showStatusMessage('Escaneando documento...', 'success');
+    // Paso 1: Verificar modo edición
+    updateStep(1, 'active', 'Verificando formulario', 'Comprobando modo edición...');
+    
+    const editCheck = await checkEditMode();
+    if (!editCheck.isEditMode) {
+      const errorMsg = editCheck.error || 'Primero haz clic en "Editar detalles" en Cloudbeds';
+      updateStep(1, 'error', 'Verificando formulario', errorMsg);
+      showProgressResult('error', '⚠️ Error', errorMsg);
+      return;
+    }
+    
+    updateStep(1, 'completed', 'Verificando formulario', 'Formulario listo ✓');
+    
+    // Paso 2: Extraer datos con OpenAI
+    updateStep(2, 'active', 'Analizando documento', isDniMode ? 'Enviando 2 imágenes a OpenAI...' : 'Enviando imagen a OpenAI...');
     
     if (isDniMode) {
-      // Modo DNI español: enviar las 2 imágenes
       extractedData = await extractDataFromDniImages(stored.openaiApiKey, selectedImages);
     } else {
-      // Modo normal: una sola imagen
       extractedData = await extractDataFromImage(stored.openaiApiKey, selectedImage);
     }
     
-    displayExtractedData(extractedData);
-    results.classList.remove('hidden');
+    updateStep(2, 'completed', 'Analizando documento', 'Datos extraídos ✓');
+    displayProgressData(extractedData);
     
-    // Paso 2: Rellenar formulario en Cloudbeds
-    showStatusMessage('Rellenando formulario...', 'success');
-    await fillCloudbedsForm(extractedData);
+    // Paso 3: Rellenar formulario
+    updateStep(3, 'active', 'Rellenando formulario', 'Completando campos en Cloudbeds...');
+    
+    const fillResult = await fillCloudbedsForm(extractedData);
+    
+    updateStep(3, 'completed', 'Rellenando formulario', `${fillResult.filledCount || ''} campos completados${fillResult.photoUploaded ? ' + foto' : ''} ✓`);
+    
+    // Mostrar botones finales
+    showProgressResult('success');
     
   } catch (error) {
-    showStatusMessage(`Error: ${error.message}`, 'error');
-  } finally {
-    setLoading(false);
+    // Determinar qué paso falló
+    const step1State = step1.classList.contains('completed') ? 'completed' : 
+                       step1.classList.contains('error') ? 'error' : 'active';
+    const step2State = step2.classList.contains('completed') ? 'completed' : 
+                       step2.classList.contains('error') ? 'error' : 
+                       step2.classList.contains('pending') ? 'pending' : 'active';
+    
+    if (step1State !== 'completed') {
+      updateStep(1, 'error', 'Verificando formulario', error.message);
+    } else if (step2State !== 'completed') {
+      updateStep(2, 'error', 'Analizando documento', error.message);
+    } else {
+      updateStep(3, 'error', 'Rellenando formulario', error.message);
+    }
+    
+    showProgressResult('error');
   }
 });
 
@@ -354,11 +421,11 @@ async function fillCloudbedsForm(data) {
     });
 
     if (response && response.success) {
-      let message = `✅ ¡Listo! ${response.filledCount || ''} campos rellenados`;
-      if (response.photoUploaded) {
-        message += ' + foto subida';
-      }
-      showStatusMessage(message, 'success');
+      return {
+        success: true,
+        filledCount: response.filledCount || 0,
+        photoUploaded: response.photoUploaded || false
+      };
     } else {
       throw new Error(response?.error || 'Error al rellenar el formulario');
     }
@@ -385,6 +452,7 @@ Devuelve SOLO un JSON válido con esta estructura exacta (sin markdown ni texto 
   "expirationDate": "fecha de caducidad en formato DD/MM/YYYY",
   "issuingCountry": "país que expidió el documento (código ISO de 2 letras, ej: ES para España)",
   "address": "dirección si aparece",
+  "zipCode": "código postal si aparece (5 dígitos para España)",
   "city": "ciudad si aparece",
   "country": "país de residencia (código ISO de 2 letras)",
   "supportNumber": "número de soporte (solo para DNI español, está en la parte inferior derecha)"
@@ -501,7 +569,7 @@ Devuelve SOLO un JSON válido con esta estructura exacta (sin markdown ni texto 
   "expirationDate": "fecha de caducidad/validez en formato DD/MM/YYYY",
   "issuingCountry": "ES",
   "address": "dirección completa (calle, número, piso, puerta)",
-  "zipCode": "código postal de 5 dígitos",
+  "zipCode": "código postal de 5 dígitos (inferir de la dirección/ciudad si no aparece explícito)",
   "city": "localidad/ciudad",
   "province": "provincia",
   "country": "ES",
@@ -514,6 +582,7 @@ IMPORTANTE:
 - Solo extrae los datos si isValidDni=true
 - La dirección está en el REVERSO del DNI
 - El número de soporte está en el ANVERSO, debajo de la fecha de validez
+- El código postal NO aparece en el DNI, pero DEBES inferirlo usando tu conocimiento de los códigos postales españoles. Usa la dirección completa (nombre de calle, número, ciudad y provincia) para determinar el código postal más preciso posible. En España cada calle tiene asignado un código postal específico.
 - Si algún dato no es legible, usa null`;
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -681,6 +750,158 @@ function showStatusMessage(message, type) {
 
 function hideStatusMessage() {
   statusMessage.classList.add('hidden');
+}
+
+// ============ VISTA DE PROGRESO ============
+
+function showProgressView() {
+  // Ocultar el tab content actual
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelector('.tabs').classList.add('hidden');
+  
+  // Resetear estados
+  resetProgressSteps();
+  progressActions.classList.add('hidden');
+  errorActions.classList.add('hidden');
+  progressData.classList.add('hidden');
+  
+  // Mostrar vista de progreso
+  progressView.classList.remove('hidden');
+}
+
+function hideProgressView() {
+  // Ocultar vista de progreso
+  progressView.classList.add('hidden');
+  
+  // Mostrar tabs y contenido
+  document.querySelector('.tabs').classList.remove('hidden');
+  document.getElementById('tab-scan').classList.add('active');
+  
+  // Resetear para el próximo escaneo
+  hideStatusMessage();
+  results.classList.add('hidden');
+}
+
+function resetProgressSteps() {
+  [step1, step2, step3].forEach((step, index) => {
+    step.className = index === 0 ? 'step' : 'step pending';
+    step.querySelector('.step-icon').textContent = '⏳';
+  });
+  
+  step1.querySelector('.step-title').textContent = 'Verificando formulario';
+  step1.querySelector('.step-description').textContent = 'Comprobando modo edición...';
+  step2.querySelector('.step-title').textContent = 'Analizando documento';
+  step2.querySelector('.step-description').textContent = 'Enviando imagen a OpenAI...';
+  step3.querySelector('.step-title').textContent = 'Rellenando formulario';
+  step3.querySelector('.step-description').textContent = 'Completando campos en Cloudbeds...';
+}
+
+function updateStep(stepNum, state, title, description) {
+  const stepEl = document.getElementById(`step${stepNum}`);
+  if (!stepEl) return;
+  
+  // Actualizar clase
+  stepEl.className = `step ${state}`;
+  
+  // Actualizar icono
+  const iconEl = stepEl.querySelector('.step-icon');
+  switch (state) {
+    case 'active':
+      iconEl.textContent = '⏳';
+      break;
+    case 'completed':
+      iconEl.textContent = '✅';
+      break;
+    case 'error':
+      iconEl.textContent = '❌';
+      break;
+    default:
+      iconEl.textContent = '⏳';
+  }
+  
+  // Actualizar textos
+  if (title) stepEl.querySelector('.step-title').textContent = title;
+  if (description) stepEl.querySelector('.step-description').textContent = description;
+  
+  // Si el paso se completó, activar el siguiente (quitar pending)
+  if (state === 'completed' && stepNum < 3) {
+    const nextStep = document.getElementById(`step${stepNum + 1}`);
+    if (nextStep) nextStep.classList.remove('pending');
+  }
+}
+
+function showProgressResult(type) {
+  // Mostrar botones según el resultado
+  if (type === 'success') {
+    progressActions.classList.remove('hidden');
+  } else {
+    errorActions.classList.remove('hidden');
+  }
+}
+
+function displayProgressData(data) {
+  const labels = {
+    firstName: 'Nombre',
+    lastName: 'Apellido',
+    lastName2: '2º Apellido',
+    birthDate: 'F. Nacimiento',
+    gender: 'Género',
+    nationality: 'Nacionalidad',
+    documentType: 'Tipo Doc.',
+    documentNumber: 'Nº Doc.',
+    issueDate: 'F. Emisión',
+    expirationDate: 'F. Caducidad',
+    issuingCountry: 'País Emisor',
+    address: 'Dirección',
+    zipCode: 'C. Postal',
+    city: 'Ciudad',
+    province: 'Provincia',
+    country: 'País',
+    supportNumber: 'Nº Soporte'
+  };
+
+  const genderLabels = { M: 'Masculino', F: 'Femenino' };
+  const docTypeLabels = {
+    passport: 'Pasaporte',
+    dni: 'DNI',
+    nie: 'NIE',
+    driver_licence: 'Licencia'
+  };
+  
+  // Campos que ocupan todo el ancho
+  const fullWidthFields = ['address'];
+
+  progressExtractedData.innerHTML = '';
+  
+  for (const [key, value] of Object.entries(data)) {
+    if (key === '_tokenUsage') continue;
+    if (value !== null && value !== '') {
+      const item = document.createElement('div');
+      item.className = 'data-item' + (fullWidthFields.includes(key) ? ' full-width' : '');
+      
+      let displayValue = value;
+      if (key === 'gender') displayValue = genderLabels[value] || value;
+      if (key === 'documentType') displayValue = docTypeLabels[value] || value;
+      
+      item.innerHTML = `
+        <div class="data-item-label">${labels[key] || key}</div>
+        <div class="data-item-value">${displayValue}</div>
+      `;
+      progressExtractedData.appendChild(item);
+    }
+  }
+  
+  // Mostrar uso de tokens
+  if (data._tokenUsage) {
+    const usage = data._tokenUsage;
+    progressTokenUsage.innerHTML = `
+      <div class="data-row"><span class="data-label">Tokens enviados</span><span class="data-value">${usage.prompt_tokens.toLocaleString()}</span></div>
+      <div class="data-row"><span class="data-label">Tokens recibidos</span><span class="data-value">${usage.completion_tokens.toLocaleString()}</span></div>
+      <div class="data-row"><span class="data-label">Total tokens</span><span class="data-value">${usage.total_tokens.toLocaleString()}</span></div>
+    `;
+  }
+  
+  progressData.classList.remove('hidden');
 }
 
 // ============ INDEXEDDB PARA GUARDAR EL HANDLE DE LA CARPETA ============

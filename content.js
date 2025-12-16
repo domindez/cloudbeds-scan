@@ -73,7 +73,7 @@ async function fillGuestForm(data, imageToUpload) {
       'input[id*="first_name"]'
     );
     if (!anyGuestField) {
-      showNotification('⚠️ No se encontró formulario de huésped en esta página');
+      // showNotification('⚠️ No se encontró formulario de huésped en esta página');
       return { success: false, error: 'Formulario no encontrado' };
     }
   }
@@ -383,7 +383,7 @@ async function doFillForm(data) {
     }, 300);
   }
   
-  showNotification(`✓ ${filledCount} campos rellenados correctamente`);
+  // showNotification(`✓ ${filledCount} campos rellenados correctamente`);
   
   return filledCount;
 }
@@ -987,7 +987,8 @@ function enableDocumentFields() {
   
 }
 
-// Mostrar notificación visual
+// Mostrar notificación visual (DESACTIVADA)
+/*
 function showNotification(message) {
   // Eliminar notificación anterior si existe
   const existing = document.getElementById('cloudbeds-scanner-notification');
@@ -997,76 +998,45 @@ function showNotification(message) {
 
   const notification = document.createElement('div');
   notification.id = 'cloudbeds-scanner-notification';
-  notification.innerHTML = message;
-  notification.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-    color: white;
-    padding: 16px 24px;
-    border-radius: 8px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 14px;
-    font-weight: 500;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    z-index: 999999;
-    opacity: 0;
-    transform: translateX(100px);
-    transition: all 0.3s ease;
-  `;
+  notification.textContent = message;
   
   document.body.appendChild(notification);
 
-  // Animar entrada
+  // Forzar clase show para animar
   setTimeout(() => {
-    notification.style.opacity = '1';
-    notification.style.transform = 'translateX(0)';
+    notification.classList.add('show');
   }, 10);
 
-  // Eliminar después de 4 segundos
+  // Eliminar después de 3 segundos
   setTimeout(() => {
-    notification.style.opacity = '0';
-    notification.style.transform = 'translateX(100px)';
+    notification.classList.remove('show');
     setTimeout(() => {
       notification.remove();
     }, 300);
-  }, 4000);
+  }, 3000);
 }
+*/
 
 // Función auxiliar para esperar
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Detectar si la persona es española
+// Detectar si el documento es español (expedido en España)
+// Esto incluye: DNI español, NIE, pasaporte español, permiso de residencia español
 function isSpanishPerson(data) {
-  const spanishIndicators = [
-    'españa', 'spain', 'spanish', 'español', 'española',
-    'es' // código ISO
-  ];
-  
-  // Comprobar nacionalidad
-  const nationality = (data.nationality || '').toLowerCase().trim();
-  if (spanishIndicators.some(ind => nationality === ind || nationality.includes(ind))) {
-    return true;
-  }
-  
-  // Comprobar país expedidor
+  // Comprobar país expedidor del documento (lo más fiable)
   const issuingCountry = (data.issuingCountry || '').toLowerCase().trim();
-  if (issuingCountry === 'es' || spanishIndicators.some(ind => issuingCountry === ind)) {
+  if (issuingCountry === 'es' || issuingCountry === 'esp' || issuingCountry === 'spain' || issuingCountry === 'españa') {
     return true;
   }
   
-  // Comprobar país de residencia
-  const country = (data.country || '').toLowerCase().trim();
-  if (country === 'es' || spanishIndicators.some(ind => country === ind)) {
+  // Comprobar tipo de documento español
+  const docType = (data.documentType || '').toLowerCase().trim();
+  if (docType === 'dni' || docType === 'nie') {
+    // DNI y NIE son exclusivamente españoles
     return true;
   }
-  
-  // NOTA: Ya NO consideramos docType === 'dni' como indicador de español
-  // porque otros países europeos también usan tarjetas de identidad (ID cards)
-  // que podrían identificarse como 'dni' o 'id'
   
   return false;
 }
