@@ -1,5 +1,5 @@
 // Configuración
-const OPENAI_MODEL = 'gpt-4o-mini'; // Modelo de OpenAI para visión
+const OPENAI_MODEL = 'gpt-5-mini'; // Modelo de OpenAI para visión
 
 // Estado de la aplicación
 let selectedImage = null;
@@ -419,8 +419,8 @@ IMPORTANTE:
           ]
         }
       ],
-      max_tokens: 1000,
-      temperature: 0.1
+      max_completion_tokens: 2000,
+      reasoning_effort: 'minimal'
     })
   });
 
@@ -546,8 +546,8 @@ IMPORTANTE:
           ]
         }
       ],
-      max_tokens: 1200,
-      temperature: 0.1
+      max_completion_tokens: 2500,
+      reasoning_effort: 'minimal'
     })
   });
 
