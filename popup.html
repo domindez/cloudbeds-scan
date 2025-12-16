@@ -11,8 +11,7 @@
 			<!-- Header -->
 			<div class="header">
 				<div class="logo">
-					<span class="logo-icon">🪪</span>
-					<span class="logo-text">ID Scanner</span>
+					<span class="logo-text">Cloudbeds ID Scanner</span>
 				</div>
 			</div>
 
@@ -26,9 +25,9 @@
 			<div id="tab-scan" class="tab-content active">
 				<!-- Botones principales -->
 				<div class="main-buttons">
-					<button id="loadDniBtn" class="btn btn-main btn-dni" title="Cargar 2 últimos escaneos para DNI español">
+					<button id="loadDniBtn" class="btn btn-main btn-dni" title="Cargar 2 últimos escaneos para DNI o NIE español">
 						<span class="btn-icon-large">🪪</span>
-						<span class="btn-label">DNI Español</span>
+						<span class="btn-label">DNI / NIE</span>
 						<span class="btn-sublabel">2 caras</span>
 					</button>
 					<button id="loadScanBtn" class="btn btn-main btn-other" title="Cargar último escaneo (1 imagen)">
@@ -38,9 +37,13 @@
 					</button>
 				</div>
 
-				<!-- Botón secundario -->
-				<button id="selectFileBtn" class="btn btn-secondary btn-file"><span>📁</span> Seleccionar archivo</button>
+				<!-- Botones de selección de archivos -->
+				<div class="file-buttons">
+					<button id="selectDniFilesBtn" class="btn btn-secondary btn-file">📁 Seleccionar 2 archivos (DNI/NIE)</button>
+					<button id="selectFileBtn" class="btn btn-secondary btn-file">📁 Seleccionar archivo</button>
+				</div>
 				<input type="file" id="fileInput" accept="image/*" />
+				<input type="file" id="fileInputMultiple" accept="image/*" multiple />
 
 				<!-- Drop zone (para drag & drop) -->
 				<div id="dropZone" class="drop-zone">
@@ -109,7 +112,7 @@
 						<div class="step-icon">⏳</div>
 						<div class="step-content">
 							<div class="step-title">Analizando documento</div>
-							<div class="step-description">Enviando imagen a OpenAI...</div>
+							<div class="step-description">Extrayendo datos...</div>
 						</div>
 					</div>
 
@@ -124,7 +127,7 @@
 
 				<!-- Botones finales -->
 				<div id="progressActions" class="progress-actions hidden">
-					<button id="scanAnotherBtn" class="btn btn-action"><span>🪪</span> Escanear otro documento</button>
+					<button id="scanAnotherBtn" class="btn btn-action">Escanear otro documento</button>
 				</div>
 				<!-- Botones de error -->
 				<div id="errorActions" class="progress-actions hidden">
@@ -160,7 +163,7 @@
 
 				<div class="settings-section">
 					<label class="settings-label">Carpeta del escáner</label>
-					<p class="settings-hint">Carpeta donde Brother guarda los escaneos</p>
+					<p class="settings-hint">Carpeta donde se guardan los escaneos</p>
 					<div id="scanFolderPath" class="folder-path">No configurada</div>
 					<button id="selectFolderBtn" class="btn btn-secondary btn-full">📂 Seleccionar carpeta</button>
 					<div id="folderStatus" class="status"></div>
@@ -174,6 +177,13 @@
 						<input type="checkbox" id="uploadPhotoCheckbox" />
 						<span>Subir imagen del documento como foto del huésped</span>
 					</label>
+				</div>
+
+				<div class="settings-divider"></div>
+
+				<div class="settings-credits">
+					<p>Desarrollado por <a href="https://github.com/domindez" target="_blank" rel="noopener">Domindez</a></p>
+					<p class="version">v1.0.0</p>
 				</div>
 			</div>
 		</div>

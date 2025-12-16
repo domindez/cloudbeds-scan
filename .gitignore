@@ -1,0 +1,40 @@
+# Dependencias
+node_modules/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE / Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+
+# Archivos temporales
+*.tmp
+*.temp
+
+# Imágenes de prueba (no incluir documentos reales)
+test-images/
+*.test.jpg
+*.test.png
+
+# Archivos de build (si los hubiera)
+dist/
+build/
+
+# Archivos de configuración local
+.env
+.env.local
+*.local
+
+# Backups
+*.bak
+*.backup

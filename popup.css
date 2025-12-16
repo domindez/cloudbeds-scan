@@ -210,7 +210,14 @@ body {
 }
 
 .btn-file {
-	width: 100%;
+	flex: 1;
+	font-size: 12px;
+	padding: 8px 12px;
+}
+
+.file-buttons {
+	display: flex;
+	gap: 8px;
 }
 
 .btn-action {
@@ -270,7 +277,8 @@ body {
 /* ========================================
    FILE INPUT (hidden)
    ======================================== */
-#fileInput {
+#fileInput,
+#fileInputMultiple {
 	display: none;
 }
 
@@ -558,6 +566,30 @@ input:focus {
 .status.error {
 	background: #fef2f2;
 	color: #991b1b;
+}
+
+/* Credits */
+.settings-credits {
+	text-align: center;
+	padding: 12px;
+	color: var(--text-muted);
+	font-size: 12px;
+}
+
+.settings-credits a {
+	color: var(--primary);
+	text-decoration: none;
+	font-weight: 500;
+}
+
+.settings-credits a:hover {
+	text-decoration: underline;
+}
+
+.settings-credits .version {
+	margin-top: 4px;
+	font-size: 11px;
+	opacity: 0.7;
 }
 
 /* ========================================

@@ -1,116 +1,91 @@
-# 🪪 Cloudbeds ID Scanner
+# Cloudbeds ID Scanner
 
-Extensión de Chrome para escanear documentos de identidad (pasaporte, DNI, NIE, etc.) y rellenar automáticamente los datos del huésped en Cloudbeds.
+A Chrome extension that scans identity documents (ID cards, passports, driver's licenses) and automatically fills guest forms in Cloudbeds using OpenAI's Vision API.
 
-## ✨ Características
+![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-green?logo=googlechrome)
+![License](https://img.shields.io/badge/License-MIT-blue)
 
-- 📷 Escanea imágenes de documentos de identidad
-- 🤖 Usa GPT-4o-mini de OpenAI para extraer datos con alta precisión
-- 🏨 Rellena automáticamente el formulario de huésped en Cloudbeds
-- 🔒 Tu API Key se guarda localmente en tu navegador
+## ✨ Features
 
-## 📋 Datos que extrae
+- 📷 **Automatic scanning** - Load images from a configured folder or select them manually
+- 🪪 **Spanish DNI/NIE support** - Extracts data from both sides of the document (front and back)
+- 🛂 **Multiple documents** - Compatible with passports, driver's licenses, and other ID documents
+- 🤖 **Advanced AI** - Uses OpenAI's GPT-5-mini for high-precision data extraction
+- 📝 **Auto-fill** - Automatically fills Cloudbeds guest form fields
+- 🏙️ **Spanish municipalities** - Built-in database for Spanish city autocomplete
+- 🌍 **Nationalities** - Multi-language nationality recognition
 
-- Nombre y apellidos
-- Fecha de nacimiento
-- Género
-- Nacionalidad
-- Tipo de documento (Pasaporte, DNI, NIE, Licencia)
-- Número de documento
-- Fecha de emisión
-- Fecha de caducidad
-- País expedidor
-- Número de soporte (para DNI español)
+## 📦 Installation
 
-## 🚀 Instalación
+### From source code
 
-### 1. Descargar/Clonar el proyecto
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/domindez/cloudbeds-scan.git
+   ```
 
-Descarga esta carpeta o clona el repositorio.
+2. Open Chrome and go to `chrome://extensions/`
 
-### 2. Instalar en Chrome
+3. Enable **Developer mode** (top right corner)
 
-1. Abre Chrome y ve a `chrome://extensions/`
-2. Activa el **"Modo de desarrollador"** (esquina superior derecha)
-3. Haz clic en **"Cargar descomprimida"**
-4. Selecciona la carpeta `cloudbeds-scan`
+4. Click **Load unpacked** and select the project folder
 
-### 3. Obtener una API Key de OpenAI
+5. The extension will appear in your extensions bar
 
-1. Ve a [OpenAI Platform](https://platform.openai.com/api-keys)
-2. Crea una nueva API Key
-3. Copia la key (empieza con `sk-...`)
+## ⚙️ Configuration
 
-## 📖 Uso
+1. Click on the extension icon
+2. Go to the **Settings** tab
+3. Enter your **OpenAI API Key** (must start with `sk-`)
+4. (Optional) Configure the **scanner folder** if you use a physical scanner
 
-1. **Configura tu API Key:**
+## 🚀 Usage
 
-   - Haz clic en el icono de la extensión
-   - Pega tu API Key de OpenAI
-   - Haz clic en "Guardar API Key"
+1. Open Cloudbeds and navigate to a guest form
+2. Click on **"Edit details"** for the guest
+3. Open the ID Scanner extension
+4. Select the document type:
+   - **DNI/NIE**: Loads the last 2 scanned images (front and back)
+   - **Other document**: Loads the last scanned image
+5. Click **"Scan and fill"**
+6. Done! The fields will be filled automatically
 
-2. **Escanea un documento:**
+## 🔑 Requirements
 
-   - Arrastra una imagen de un documento o haz clic para seleccionar
-   - Haz clic en "🔍 Escanear documento"
-   - Espera unos segundos mientras se procesan los datos
+- Google Chrome (version 88 or higher)
+- OpenAI account with API access
+- OpenAI API Key with available credits
 
-3. **Rellena el formulario en Cloudbeds:**
-   - Abre la página de huésped en Cloudbeds
-   - Haz clic en "✅ Rellenar formulario en Cloudbeds"
-   - ¡Los campos se rellenarán automáticamente!
+## 💰 Costs
 
-## 💰 Costos
+The extension uses the OpenAI API to process images. Approximate cost:
 
-Esta extensión usa el modelo `gpt-4o-mini` de OpenAI que es muy económico:
+- **Simple document** (1 image): ~$0.0015 per scan
+- **DNI/NIE** (2 images): ~$0.0017 per scan
 
-- ~$0.00015 por imagen procesada (aproximadamente)
-- Puedes procesar miles de documentos por menos de $1
+Costs may vary depending on image size and model response.
 
-## 🔒 Privacidad
+## 🛡️ Privacy
 
-- Tu API Key se guarda **localmente** en tu navegador
-- Las imágenes se envían directamente a OpenAI, no a ningún servidor intermedio
-- No almacenamos ningún dato personal
+- Images are sent directly to the OpenAI API
+- No data is stored on intermediate servers
+- Your API Key is saved locally in your browser
+- Extracted data is only used to fill the form
 
-## 🛠️ Estructura del proyecto
+## 🤝 Contributing
 
-```
-cloudbeds-scan/
-├── manifest.json      # Configuración de la extensión
-├── popup.html         # Interfaz del popup
-├── popup.css          # Estilos del popup
-├── popup.js           # Lógica del popup y llamada a OpenAI
-├── content.js         # Script que rellena el formulario
-├── content.css        # Estilos de notificación
-├── icons/             # Iconos de la extensión
-└── README.md          # Este archivo
-```
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-## ⚠️ Solución de problemas
+## 📝 License
 
-### "Error: Asegúrate de estar en la página de huésped de Cloudbeds"
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-- Verifica que estás en `https://hotels.cloudbeds.com/...`
-- Asegúrate de estar en la pestaña de información del huésped
+## 👤 Author
 
-### "Error en la API de OpenAI"
+**Domindez**
 
-- Verifica que tu API Key sea correcta
-- Asegúrate de tener saldo en tu cuenta de OpenAI
-- Comprueba que la key no haya expirado
+- GitHub: [@domindez](https://github.com/domindez)
 
-### Los campos no se rellenan
+---
 
-- Intenta recargar la página de Cloudbeds
-- Verifica que el formulario de huésped esté visible
-
-## 📝 Notas
-
-- Funciona mejor con imágenes claras y bien iluminadas
-- Soporta documentos en múltiples idiomas
-- Los datos extraídos se pueden revisar antes de rellenar el formulario
-
-## 📄 Licencia
-
-MIT License - Uso libre
+⭐ If you find this project useful, consider giving it a star on GitHub.

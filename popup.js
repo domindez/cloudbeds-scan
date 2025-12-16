@@ -15,7 +15,9 @@ const saveKeyBtn = document.getElementById('saveKey');
 const keyStatus = document.getElementById('keyStatus');
 const dropZone = document.getElementById('dropZone');
 const selectFileBtn = document.getElementById('selectFileBtn');
+const selectDniFilesBtn = document.getElementById('selectDniFilesBtn');
 const fileInput = document.getElementById('fileInput');
+const fileInputMultiple = document.getElementById('fileInputMultiple');
 const preview = document.getElementById('preview');
 const previewImage = document.getElementById('previewImage');
 const clearImageBtn = document.getElementById('clearImage');
@@ -184,12 +186,42 @@ selectFileBtn.addEventListener('click', async (e) => {
   fileInput.click();
 });
 
-// Selección de archivo
+// Click en botón de seleccionar 2 archivos para DNI/NIE
+selectDniFilesBtn.addEventListener('click', async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  
+  // Verificar que estamos en modo edición
+  const editCheck = await checkEditMode();
+  if (!editCheck.isEditMode) {
+    const errorMsg = editCheck.error || 'Primero haz clic en "Editar detalles" en Cloudbeds';
+    showStatusMessage(`⚠️ ${errorMsg}`, 'error');
+    return;
+  }
+  
+  fileInputMultiple.click();
+});
+
+// Selección de archivo único
 fileInput.addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (file) {
     handleImageFile(file);
   }
+});
+
+// Selección de múltiples archivos para DNI/NIE
+fileInputMultiple.addEventListener('change', (e) => {
+  const files = Array.from(e.target.files);
+  if (files.length >= 2) {
+    // Ordenar por fecha de modificación (más reciente primero)
+    files.sort((a, b) => b.lastModified - a.lastModified);
+    handleDniImages(files[0], files[1]);
+  } else if (files.length === 1) {
+    showStatusMessage('⚠️ Selecciona 2 imágenes (anverso y reverso)', 'error');
+  }
+  // Limpiar input para permitir seleccionar los mismos archivos de nuevo
+  fileInputMultiple.value = '';
 });
 
 // Procesar imagen seleccionada
@@ -234,7 +266,7 @@ function handleDniImages(file1, file2) {
     previewDni.classList.remove('hidden');
     dropZone.classList.add('hidden');
     scanBtn.disabled = false;
-    scanText.textContent = 'Escanear DNI y rellenar';
+    scanText.textContent = 'Escanear y rellenar';
     results.classList.add('hidden');
     hideStatusMessage();
   });
@@ -343,7 +375,7 @@ scanBtn.addEventListener('click', async () => {
     updateStep(1, 'completed', 'Verificando formulario', 'Formulario listo ✓');
     
     // Paso 2: Extraer datos con OpenAI
-    updateStep(2, 'active', 'Analizando documento', isDniMode ? 'Enviando 2 imágenes a OpenAI...' : 'Enviando imagen a OpenAI...');
+    updateStep(2, 'active', 'Analizando documento', 'Extrayendo datos...');
     
     if (isDniMode) {
       extractedData = await extractDataFromDniImages(stored.openaiApiKey, selectedImages);
@@ -523,30 +555,32 @@ IMPORTANTE:
 
 // Llamada a OpenAI Vision API para DNI español (2 imágenes: anverso y reverso)
 async function extractDataFromDniImages(apiKey, images) {
-  const prompt = `Analiza estas 2 imágenes y determina si son el anverso y reverso de un DNI español.
+  const prompt = `Analiza estas 2 imágenes y determina si son el anverso y reverso de un DNI o NIE español.
 
 PRIMERO verifica:
-1. ¿Es la primera imagen parte de un DNI español (anverso o reverso)?
-2. ¿Es la segunda imagen parte de un DNI español (anverso o reverso)?
+1. ¿Es la primera imagen parte de un DNI o NIE español (anverso o reverso)?
+2. ¿Es la segunda imagen parte de un DNI o NIE español (anverso o reverso)?
 3. ¿Tienes AMBAS caras (anverso Y reverso)?
 
-El ANVERSO del DNI español contiene:
+El ANVERSO del DNI/NIE español contiene:
 - Foto del titular
 - Nombre y apellidos
 - Fecha de nacimiento
 - Sexo (M/F)
 - Nacionalidad
-- Número del DNI (8 números + 1 letra)
+- Número del documento:
+  * DNI: 8 números + 1 letra (ejemplo: 12345678A)
+  * NIE: 1 letra inicial (X, Y o Z) + 7 números + 1 letra final (ejemplo: X1234567A)
 - Fecha de validez/caducidad
 - Número de soporte (código alfanumérico debajo de la fecha de validez)
 
-El REVERSO del DNI español contiene:
+El REVERSO del DNI/NIE español contiene:
 - Dirección completa (calle, número, piso, puerta)
 - Código postal
 - Localidad/Ciudad
 - Provincia
 - Lugar de nacimiento
-- Nombre de los padres
+- Nombre de los padres (en DNI) o país de nacimiento (en NIE)
 - Código MRZ (zona de lectura mecánica)
 
 Devuelve SOLO un JSON válido con esta estructura exacta (sin markdown ni texto adicional):
@@ -562,9 +596,9 @@ Devuelve SOLO un JSON válido con esta estructura exacta (sin markdown ni texto 
   "lastName2": "segundo apellido",
   "birthDate": "fecha de nacimiento en formato DD/MM/YYYY",
   "gender": "M para masculino, F para femenino",
-  "nationality": "Spain",
-  "documentType": "dni",
-  "documentNumber": "número del DNI (8 números + letra)",
+  "nationality": "nacionalidad en INGLÉS (Spain para españoles, nombre del país de origen para NIE)",
+  "documentType": "dni o nie",
+  "documentNumber": "número del documento (DNI: 8 números + letra, NIE: letra + 7 números + letra)",
   "issueDate": "fecha de expedición en formato DD/MM/YYYY (si visible)",
   "expirationDate": "fecha de caducidad/validez en formato DD/MM/YYYY",
   "issuingCountry": "ES",
@@ -577,12 +611,13 @@ Devuelve SOLO un JSON válido con esta estructura exacta (sin markdown ni texto 
 }
 
 IMPORTANTE:
-- Si las imágenes NO son un DNI español válido con ambas caras, pon isValidDni=false y describe el problema en errorMessage
-- Ejemplos de errores: "Solo se detectó el anverso, falta el reverso", "La imagen 1 no es un DNI español", "Ambas imágenes son el mismo lado del DNI"
+- Si las imágenes NO son un DNI o NIE español válido con ambas caras, pon isValidDni=false y describe el problema en errorMessage
+- Ejemplos de errores: "Solo se detectó el anverso, falta el reverso", "La imagen 1 no es un DNI/NIE español", "Ambas imágenes son el mismo lado del documento"
 - Solo extrae los datos si isValidDni=true
-- La dirección está en el REVERSO del DNI
+- La dirección está en el REVERSO del documento
 - El número de soporte está en el ANVERSO, debajo de la fecha de validez
-- El código postal NO aparece en el DNI, pero DEBES inferirlo usando tu conocimiento de los códigos postales españoles. Usa la dirección completa (nombre de calle, número, ciudad y provincia) para determinar el código postal más preciso posible. En España cada calle tiene asignado un código postal específico.
+- El código postal NO aparece en el documento, pero DEBES inferirlo usando tu conocimiento de los códigos postales españoles. Usa la dirección completa (nombre de calle, número, ciudad y provincia) para determinar el código postal más preciso posible. En España cada calle tiene asignado un código postal específico.
+- Para NIE: la nacionalidad debe ser el país de origen de la persona (en inglés), NO "Spain"
 - Si algún dato no es legible, usa null`;
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -737,7 +772,7 @@ function setLoading(loading) {
   if (loading) {
     scanText.textContent = 'Procesando...';
   } else {
-    scanText.textContent = isDniMode ? 'Escanear DNI y rellenar' : 'Escanear y rellenar';
+    scanText.textContent = isDniMode ? 'Escanear y rellenar' : 'Escanear y rellenar';
   }
   scanLoader.classList.toggle('hidden', !loading);
 }
@@ -791,7 +826,7 @@ function resetProgressSteps() {
   step1.querySelector('.step-title').textContent = 'Verificando formulario';
   step1.querySelector('.step-description').textContent = 'Comprobando modo edición...';
   step2.querySelector('.step-title').textContent = 'Analizando documento';
-  step2.querySelector('.step-description').textContent = 'Enviando imagen a OpenAI...';
+  step2.querySelector('.step-description').textContent = 'Extrayendo datos...';
   step3.querySelector('.step-title').textContent = 'Rellenando formulario';
   step3.querySelector('.step-description').textContent = 'Completando campos en Cloudbeds...';
 }
