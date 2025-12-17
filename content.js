@@ -1027,14 +1027,28 @@ function sleep(ms) {
 function isSpanishPerson(data) {
   // Comprobar país expedidor del documento (lo más fiable)
   const issuingCountry = (data.issuingCountry || '').toLowerCase().trim();
+  
+  // Si el país emisor es España, es español
   if (issuingCountry === 'es' || issuingCountry === 'esp' || issuingCountry === 'spain' || issuingCountry === 'españa') {
     return true;
   }
   
-  // Comprobar tipo de documento español
+  // Si el país emisor está definido y NO es España, NO es español
+  // (aunque el tipo de documento sea "DNI", ya que otros países también usan ese término)
+  if (issuingCountry && issuingCountry.length > 0) {
+    return false;
+  }
+  
+  // Si no hay país emisor, comprobar tipo de documento español (DNI/NIE)
+  // Solo asumimos español si no tenemos información del país emisor
   const docType = (data.documentType || '').toLowerCase().trim();
   if (docType === 'dni' || docType === 'nie') {
-    // DNI y NIE son exclusivamente españoles
+    // Verificar también la nacionalidad - si hay nacionalidad y no es española, no es español
+    const nationality = (data.nationality || '').toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (nationality && nationality !== 'spain' && nationality !== 'espana' && nationality !== 'spanish' && nationality !== 'espanol' && nationality !== 'española') {
+      return false;
+    }
+    // DNI y NIE sin país emisor ni nacionalidad extranjera -> asumir español
     return true;
   }
   
