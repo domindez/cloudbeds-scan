@@ -55,6 +55,10 @@
 					<img id="previewImage" alt="Preview" />
 					<span id="previewLabel" class="preview-label hidden"></span>
 					<button id="clearImage" class="btn-close" title="Eliminar">×</button>
+					<!-- Alerta de detección de rostro fallida -->
+					<div id="faceDetectionError" class="face-detection-warning hidden">
+						<p>No se detectó cara. Puedes continuar sin añadir la foto del huésped.</p>
+					</div>
 				</div>
 
 				<div id="previewDni" class="preview-dni hidden">
@@ -175,7 +179,7 @@
 					<label class="settings-label">Opciones adicionales</label>
 					<label class="checkbox-label">
 						<input type="checkbox" id="uploadPhotoCheckbox" />
-						<span>Subir imagen del documento como foto del huésped</span>
+						<span>Subir foto del huésped (extraída automáticamente del documento)</span>
 					</label>
 				</div>
 
@@ -183,11 +187,13 @@
 
 				<div class="settings-credits">
 					<p>Desarrollado por <a href="https://github.com/domindez" target="_blank" rel="noopener">Domindez</a></p>
-					<p class="version">v1.0.0</p>
+					<p class="version">v1.1.0</p>
 				</div>
 			</div>
 		</div>
 
+		<script src="lib/face-api.min.js"></script>
+		<script src="face-detector.js"></script>
 		<script src="popup.js"></script>
 	</body>
 </html>

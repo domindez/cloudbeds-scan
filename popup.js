@@ -54,6 +54,7 @@ const progressTokenUsage = document.getElementById('progressTokenUsage');
 
 // Elementos adicionales
 const uploadPhotoCheckbox = document.getElementById('uploadPhotoCheckbox');
+const faceDetectionError = document.getElementById('faceDetectionError');
 
 // Inicialización
 document.addEventListener('DOMContentLoaded', async () => {
@@ -224,16 +225,96 @@ fileInputMultiple.addEventListener('change', (e) => {
   fileInputMultiple.value = '';
 });
 
+// Función para intentar extraer la cara del documento
+async function attemptFaceExtraction() {
+  // Ocultar mensaje de error previo
+  faceDetectionError.classList.add('hidden');
+  
+  // Si la opción de subir foto no está activada, usar imagen completa o DNI según corresponda
+  if (!uploadPhotoCheckbox.checked) {
+    if (isDniMode) {
+      imageToUpload = selectedImages[1]; // Imagen 2 del DNI (anverso)
+    } else {
+      imageToUpload = selectedImage; // Documento completo
+    }
+    return;
+  }
+  
+  // Si no hay face detector disponible, no intentar
+  if (!window.faceDetector) {
+    console.warn('⚠️ Face detector no disponible');
+    imageToUpload = null;
+    return;
+  }
+  
+  // Intentar extraer la cara
+  if (isDniMode) {
+    // Para DNI: intentar con ambas imágenes
+    const [img1, img2] = selectedImages;
+    try {
+      console.log('Extrayendo foto del DNI (intentando imagen 1)...');
+      const faceImage = await window.faceDetector.extractFaceFromDocument(img1, {
+        padding: 0.3,
+        minConfidence: 0.4,
+        targetSize: 500
+      });
+      imageToUpload = faceImage;
+      console.log('✓ Foto del huésped extraída de imagen 1');
+      faceDetectionError.classList.add('hidden');
+    } catch (error1) {
+      try {
+        console.log('Extrayendo foto del DNI (intentando imagen 2)...');
+        const faceImage = await window.faceDetector.extractFaceFromDocument(img2, {
+          padding: 0.3,
+          minConfidence: 0.4,
+          targetSize: 500
+        });
+        imageToUpload = faceImage;
+        console.log('✓ Foto del huésped extraída de imagen 2');
+        faceDetectionError.classList.add('hidden');
+      } catch (error2) {
+        console.warn('⚠️ No se detectó cara en ninguna imagen del DNI');
+        imageToUpload = null;
+        if (uploadPhotoCheckbox.checked) {
+          faceDetectionError.classList.remove('hidden');
+        }
+      }
+    }
+  } else {
+    // Para imagen única
+    try {
+      console.log('Extrayendo foto del documento...');
+      const faceImage = await window.faceDetector.extractFaceFromDocument(selectedImage, {
+        padding: 0.3,
+        minConfidence: 0.4,
+        targetSize: 500
+      });
+      imageToUpload = faceImage;
+      console.log('✓ Foto del huésped extraída correctamente');
+      faceDetectionError.classList.add('hidden');
+    } catch (error) {
+      console.warn('⚠️ No se pudo extraer la foto:', error.message);
+      imageToUpload = null;
+      if (uploadPhotoCheckbox.checked) {
+        faceDetectionError.classList.remove('hidden');
+      }
+    }
+  }
+}
+
+// Procesar imagen seleccionada
 // Procesar imagen seleccionada
 function handleImageFile(file) {
   isDniMode = false;
   selectedImages = [];
   previewDni.classList.add('hidden');
+  faceDetectionError.classList.add('hidden');
   
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     selectedImage = e.target.result;
-    imageToUpload = e.target.result; // Guardar para subir
+    await attemptFaceExtraction();
+    
     previewImage.src = selectedImage;
     preview.classList.remove('hidden');
     dropZone.classList.add('hidden');
@@ -250,17 +331,17 @@ function handleDniImages(file1, file2) {
   isDniMode = true;
   selectedImage = null;
   preview.classList.add('hidden');
+  faceDetectionError.classList.add('hidden');
   
   const promises = [
     readFileAsDataURL(file1),
     readFileAsDataURL(file2)
   ];
   
-  Promise.all(promises).then(([img1, img2]) => {
+  Promise.all(promises).then(async ([img1, img2]) => {
     selectedImages = [img1, img2];
-    // Para DNI: la penúltima imagen (img2) es probablemente el anverso (se escanea primero)
-    // que es la que tiene la foto y es más útil para identificar al huésped
-    imageToUpload = img2;
+    await attemptFaceExtraction();
+    
     previewImage1.src = img1;
     previewImage2.src = img2;
     previewDni.classList.remove('hidden');
@@ -304,6 +385,7 @@ function clearAllImages() {
   results.classList.add('hidden');
   fileInput.value = '';
   hideStatusMessage();
+  faceDetectionError.classList.add('hidden');
 }
 
 // Verificar si el formulario está en modo edición
