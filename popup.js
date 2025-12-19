@@ -468,12 +468,20 @@ scanBtn.addEventListener('click', async () => {
     updateStep(2, 'completed', 'Analizando documento', 'Datos extraídos ✓');
     displayProgressData(extractedData);
     
-    // Paso 3: Rellenar formulario
+    // Paso 3: Rellenar formulario + Subida de foto en PARALELO
     updateStep(3, 'active', 'Rellenando formulario', 'Completando campos en Cloudbeds...');
     
-    const fillResult = await fillCloudbedsForm(extractedData);
+    // 🚀 OPTIMIZACIÓN: Ejecutar subida de foto en paralelo con relleno de formulario
+    const fillFormPromise = fillCloudbedsForm(extractedData, true); // true = no esperar foto
+    const photoUploadPromise = startPhotoUploadAsync(); // Iniciar subida en paralelo
     
-    updateStep(3, 'completed', 'Rellenando formulario', `${fillResult.filledCount || ''} campos completados${fillResult.photoUploaded ? ' + foto' : ''} ✓`);
+    // Esperar ambas tareas en paralelo
+    const [fillResult, photoUploadResult] = await Promise.all([
+      fillFormPromise,
+      photoUploadPromise
+    ]);
+    
+    updateStep(3, 'completed', 'Rellenando formulario', `${fillResult.filledCount || ''} campos completados${photoUploadResult?.photoUploaded ? ' + foto' : ''} ✓`);
     
     // Mostrar botones finales
     showProgressResult('success');
@@ -499,7 +507,7 @@ scanBtn.addEventListener('click', async () => {
 });
 
 // Rellenar formulario en Cloudbeds
-async function fillCloudbedsForm(data) {
+async function fillCloudbedsForm(data, skipPhotoWait = false) {
   try {
     // Obtener la pestaña activa
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -523,15 +531,19 @@ async function fillCloudbedsForm(data) {
       }
     }
 
-    // Verificar si debe subir la imagen
-    const settings = await chrome.storage.local.get(['uploadPhoto']);
-    const shouldUploadImage = settings.uploadPhoto === true ? imageToUpload : null;
+    // Si skipPhotoWait es true, no incluir imagen en este mensaje
+    // La subida se hará en paralelo desde startPhotoUploadAsync()
+    let shouldUploadImage = null;
+    if (!skipPhotoWait) {
+      const settings = await chrome.storage.local.get(['uploadPhoto']);
+      shouldUploadImage = settings.uploadPhoto === true ? imageToUpload : null;
+    }
 
     // Enviar datos al content script
     const response = await chrome.tabs.sendMessage(tab.id, {
       action: 'fillGuestForm',
       data: data,
-      imageToUpload: shouldUploadImage // Solo enviar si está activado
+      imageToUpload: shouldUploadImage // Solo enviar si está activado y no estamos en modo paralelo
     });
 
     if (response && response.success) {
@@ -545,6 +557,73 @@ async function fillCloudbedsForm(data) {
     }
   } catch (error) {
     throw error;
+  }
+}
+
+// 🚀 OPTIMIZACIÓN: Iniciar subida de foto en paralelo (sin esperar relleno)
+async function startPhotoUploadAsync() {
+  try {
+    // Verificar si debe subir la imagen
+    const settings = await chrome.storage.local.get(['uploadPhoto']);
+    if (settings.uploadPhoto !== true || !imageToUpload) {
+      return { photoUploaded: false };
+    }
+
+    // Obtener la pestaña activa
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    if (!tab.url.includes('cloudbeds.com')) {
+      return { photoUploaded: false };
+    }
+
+    // Iniciar subida en segundo plano sin esperar
+    // Usar setTimeout para que se ejecute de forma completamente asíncrona
+    const uploadPromise = (async () => {
+      try {
+        // Pequeña pausa para que el relleno del formulario tenga prioridad
+        await new Promise(r => setTimeout(r, 500));
+        
+        // Verificar si el content script está cargado
+        try {
+          await chrome.tabs.sendMessage(tab.id, { action: 'ping' });
+        } catch (pingError) {
+          try {
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ['countries.js', 'municipios.js', 'content.js']
+            });
+            await new Promise(r => setTimeout(r, 500));
+          } catch (injectError) {
+            return { photoUploaded: false };
+          }
+        }
+
+        // Enviar solo para subir foto (sin datos de formulario)
+        const response = await chrome.tabs.sendMessage(tab.id, {
+          action: 'fillGuestForm',
+          data: {}, // Datos vacíos, solo para subir foto
+          imageToUpload: imageToUpload // Enviar imagen para subida
+        });
+
+        return {
+          photoUploaded: response?.photoUploaded === true
+        };
+      } catch (error) {
+        // No fallar el proceso principal si falla la foto
+        console.error('Error en subida paralela de foto:', error);
+        return { photoUploaded: false };
+      }
+    })();
+
+    // Esperar la subida de foto con timeout de 15 segundos
+    return await Promise.race([
+      uploadPromise,
+      new Promise(r => setTimeout(() => r({ photoUploaded: false }), 15000))
+    ]);
+  } catch (error) {
+    // No fallar el proceso principal si algo va mal
+    console.error('Error al iniciar subida paralela:', error);
+    return { photoUploaded: false };
   }
 }
 

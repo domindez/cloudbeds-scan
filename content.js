@@ -46,58 +46,74 @@ function checkIfEditMode() {
 // Función principal para rellenar el formulario
 async function fillGuestForm(data, imageToUpload) {
   
-  // Buscar el formulario de huésped en la página
-  const formContainers = [
-    '.guest-info-fields-folio',
-    '.customer-form',
-    '#customer-form',
-    'form[name="customer"]',
-    '.guest-details',
-    '.folio-guest-info'
-  ];
-  
-  let guestForm = null;
-  for (const selector of formContainers) {
-    guestForm = document.querySelector(selector);
-    if (guestForm) {
-      break;
-    }
-  }
-  
-  // Si no encontramos contenedor, buscar campos directamente
-  if (!guestForm) {
-    const anyGuestField = document.querySelector(
-      '[name="guest_first_name"], ' +
-      '[name="firstName"], ' +
-      '#guest_first_name, ' +
-      'input[id*="first_name"]'
-    );
-    if (!anyGuestField) {
-      // showNotification('⚠️ No se encontró formulario de huésped en esta página');
-      return { success: false, error: 'Formulario no encontrado' };
-    }
-  }
-  
-  // Buscar y hacer clic en el botón de edición si es necesario
-  await clickEditButtonIfNeeded();
-  
-  // Esperar un momento para que se habiliten los campos
-  await sleep(300);
-  
-  // Rellenar los campos
-  const filledCount = await doFillForm(data);
-  
-  // Subir la imagen del documento si está disponible
-  let photoUploaded = false;
-  if (imageToUpload) {
+  // 🚀 OPTIMIZACIÓN: Si solo tenemos imagen (datos vacíos), solo subir foto
+  if ((!data || Object.keys(data).length === 0) && imageToUpload) {
+    let photoUploaded = false;
     try {
       photoUploaded = await uploadGuestPhoto(imageToUpload);
     } catch (uploadError) {
-      // No fallar el proceso completo si la foto no se sube
+      console.error('Error en subida paralela de foto:', uploadError);
     }
+    return { success: true, filledCount: 0, photoUploaded };
   }
   
-  return { success: true, filledCount, photoUploaded };
+  // Búsqueda del formulario solo si hay datos para rellenar
+  if (data && Object.keys(data).length > 0) {
+    const formContainers = [
+      '.guest-info-fields-folio',
+      '.customer-form',
+      '#customer-form',
+      'form[name="customer"]',
+      '.guest-details',
+      '.folio-guest-info'
+    ];
+    
+    let guestForm = null;
+    for (const selector of formContainers) {
+      guestForm = document.querySelector(selector);
+      if (guestForm) {
+        break;
+      }
+    }
+    
+    // Si no encontramos contenedor, buscar campos directamente
+    if (!guestForm) {
+      const anyGuestField = document.querySelector(
+        '[name="guest_first_name"], ' +
+        '[name="firstName"], ' +
+        '#guest_first_name, ' +
+        'input[id*="first_name"]'
+      );
+      if (!anyGuestField) {
+        // showNotification('⚠️ No se encontró formulario de huésped en esta página');
+        return { success: false, error: 'Formulario no encontrado' };
+      }
+    }
+    
+    // Buscar y hacer clic en el botón de edición si es necesario
+    await clickEditButtonIfNeeded();
+    
+    // Esperar un momento para que se habiliten los campos
+    await sleep(300);
+    
+    // Rellenar los campos
+    const filledCount = await doFillForm(data);
+    
+    // Subir la imagen del documento si está disponible
+    let photoUploaded = false;
+    if (imageToUpload) {
+      try {
+        photoUploaded = await uploadGuestPhoto(imageToUpload);
+      } catch (uploadError) {
+        // No fallar el proceso completo si la foto no se sube
+      }
+    }
+    
+    return { success: true, filledCount, photoUploaded };
+  }
+  
+  // Si no hay datos ni imagen, retornar éxito sin hacer nada
+  return { success: true, filledCount: 0, photoUploaded: false };
 }
 
 // Buscar y hacer clic en el botón de edición
