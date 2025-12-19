@@ -59,6 +59,14 @@
 					<div id="faceDetectionError" class="face-detection-warning hidden">
 						<p>No se detectó cara. Puedes continuar sin añadir la foto del huésped.</p>
 					</div>
+					<!-- Selector de caras detectadas -->
+					<div id="faceSelector" class="face-selector hidden">
+						<div class="face-selector-header">
+							<p class="face-selector-title">Selecciona la foto del huésped:</p>
+						</div>
+						<div id="faceSelectorGrid" class="face-selector-grid"></div>
+						<button id="noPhotoBtn" class="btn-no-photo">❌ Continuar sin foto</button>
+					</div>
 				</div>
 
 				<div id="previewDni" class="preview-dni hidden">
@@ -73,6 +81,14 @@
 						</div>
 					</div>
 					<button id="clearDniImages" class="btn-close" title="Eliminar">×</button>
+					<!-- Selector de caras detectadas para DNI -->
+					<div id="faceSelectorDni" class="face-selector hidden">
+						<div class="face-selector-header">
+							<p class="face-selector-title">Selecciona la foto del huésped:</p>
+						</div>
+						<div id="faceSelectorGridDni" class="face-selector-grid"></div>
+						<button id="noPhotoBtnDni" class="btn-no-photo">❌ Continuar sin foto</button>
+					</div>
 				</div>
 
 				<!-- Botón escanear -->

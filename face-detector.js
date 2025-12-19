@@ -36,38 +36,145 @@ class FaceDetector {
    * Detecta y extrae la cara desde una imagen (base64 o URL)
    * @param {string} imageSource - Imagen en base64 o URL
    * @param {object} options - Opciones de configuración
-   * @returns {Promise<string>} - Imagen recortada en base64
+   * @returns {Promise<object>} - Objeto con imagen recortada y metadatos
    */
   async extractFaceFromDocument(imageSource, options = {}) {
     const {
       padding = 0.3,        // Margen adicional alrededor de la cara (30% por defecto)
-      minConfidence = 0.5,  // Confianza mínima para considerar una detección válida
-      targetSize = 400      // Tamaño objetivo del lado más largo (mantiene proporción)
+      minConfidence = 0.6,  // Confianza mínima aumentada a 60%
+      targetSize = 400,     // Tamaño objetivo del lado más largo (mantiene proporción)
+      returnAllFaces = false // Si es true, retorna todas las caras detectadas
     } = options;
+
+    console.log('[FACE-DETECTOR] extractFaceFromDocument - Iniciando');
+    console.log('[FACE-DETECTOR] Opciones:', { padding, minConfidence, targetSize, returnAllFaces });
 
     // Asegurar que los modelos estén cargados
     await this.loadModels();
 
     // Crear elemento de imagen para procesar
     const img = await this._loadImage(imageSource);
+    console.log('[FACE-DETECTOR] Imagen cargada:', img.width, 'x', img.height);
 
-    // Detectar caras en la imagen
+    // Detectar caras en la imagen con configuración mejorada
     const detections = await faceapi.detectAllFaces(
       img,
       new faceapi.TinyFaceDetectorOptions({
         inputSize: 512,
-        scoreThreshold: minConfidence
+        scoreThreshold: 0.3  // Umbral bajo para detectar todas las posibles caras
       })
     );
 
+    console.log('[FACE-DETECTOR] Detecciones brutas:', detections?.length || 0);
+
     if (!detections || detections.length === 0) {
+      console.error('[FACE-DETECTOR] No se detectó ninguna cara');
       throw new Error('No se detectó ninguna cara en el documento');
     }
 
-    // Si hay múltiples caras, tomar la más grande (probablemente la foto del documento)
-    const face = this._selectBestFace(detections);
+    // Filtrar caras por tamaño mínimo (evitar detecciones muy pequeñas)
+    const validDetections = detections.filter(d => {
+      const area = d.box.width * d.box.height;
+      const imageArea = img.width * img.height;
+      const relativeArea = area / imageArea;
+      // La cara debe ocupar al menos 2% de la imagen (ajustable)
+      return relativeArea > 0.02 && d.score >= 0.3;
+    });
+
+    console.log('[FACE-DETECTOR] Detecciones válidas (>2% área):', validDetections.length);
+    validDetections.forEach((d, i) => {
+      const area = d.box.width * d.box.height;
+      const imageArea = img.width * img.height;
+      const relativeArea = (area / imageArea * 100).toFixed(2);
+      console.log(`[FACE-DETECTOR]   Cara ${i + 1}: ${(d.score * 100).toFixed(1)}% confianza, ${relativeArea}% del área`);
+    });
+
+    // Flag para indicar si usamos umbral relajado
+    let usedRelaxedThreshold = false;
+
+    // Si no hay caras con el filtro estricto, intentar con umbral más bajo
+    if (validDetections.length === 0) {
+      console.warn('[FACE-DETECTOR] No hay caras con tamaño >2%, intentando con umbral más bajo...');
+      
+      // Usar umbral más permisivo: 0.5% del área (para DNIs de alta resolución)
+      const relaxedDetections = detections.filter(d => {
+        const area = d.box.width * d.box.height;
+        const imageArea = img.width * img.height;
+        const relativeArea = area / imageArea;
+        return relativeArea > 0.005 && d.score >= 0.2; // 0.5% área, 20% confianza mínima
+      });
+      
+      console.log('[FACE-DETECTOR] Detecciones con umbral relajado (>0.5% área):', relaxedDetections.length);
+      relaxedDetections.forEach((d, i) => {
+        const area = d.box.width * d.box.height;
+        const imageArea = img.width * img.height;
+        const relativeArea = (area / imageArea * 100).toFixed(2);
+        console.log(`[FACE-DETECTOR]   Cara ${i + 1}: ${(d.score * 100).toFixed(1)}% confianza, ${relativeArea}% del área`);
+      });
+      
+      if (relaxedDetections.length === 0) {
+        console.error('[FACE-DETECTOR] No hay caras incluso con umbral relajado');
+        throw new Error('No se detectaron caras con tamaño suficiente');
+      }
+      
+      // Usar las detecciones relajadas
+      validDetections.length = 0;
+      validDetections.push(...relaxedDetections);
+      usedRelaxedThreshold = true;
+      console.log('[FACE-DETECTOR] ✓ Usando detecciones con umbral relajado - FORZANDO selección manual');
+    }
+
+    // Si se solicitan todas las caras, retornar array completo
+    if (returnAllFaces) {
+      console.log('[FACE-DETECTOR] Modo returnAllFaces activado');
+      
+      // Ordenar por confianza (más alta primero) para mejor selección por defecto
+      const sortedDetections = [...validDetections].sort((a, b) => {
+        return b.score - a.score;
+      });
+      
+      const allFaces = sortedDetections.map((face, index) => {
+        const croppedCanvas = this._cropFaceWithPadding(img, face.box, padding);
+        const resizedCanvas = this._resizeCanvas(croppedCanvas, targetSize);
+        return {
+          index,
+          confidence: face.score,
+          box: face.box,
+          imageBase64: resizedCanvas.toDataURL('image/jpeg', 0.92)
+        };
+      });
+      
+      // Solo necesita selección manual si NO hay ninguna cara con >60% de confianza
+      const hasHighConfidenceFace = sortedDetections.some(d => d.score >= minConfidence);
+      const needsManualSelection = !hasHighConfidenceFace;
+      
+      console.log('[FACE-DETECTOR] needsManualSelection:', needsManualSelection);
+      console.log('[FACE-DETECTOR] Razón:', {
+        hasHighConfidenceFace: hasHighConfidenceFace,
+        highestScore: sortedDetections[0].score,
+        minRequired: minConfidence,
+        totalFaces: sortedDetections.length
+      });
+      
+      return {
+        needsManualSelection,
+        faces: allFaces,
+        bestFaceIndex: 0, // Por defecto la más grande
+        highestConfidence: sortedDetections[0].score
+      };
+    }
+
+    // Comportamiento original: seleccionar la mejor cara automáticamente
+    // Ordenar por confianza (más alta primero)
+    const sortedDetections = [...validDetections].sort((a, b) => {
+      return b.score - a.score;
+    });
     
-    console.log(`✓ Cara detectada con confianza: ${(face.score * 100).toFixed(1)}%`);
+    const face = sortedDetections[0];
+    
+    console.log('[FACE-DETECTOR] Mejor cara seleccionada:');
+    console.log('[FACE-DETECTOR]   Confianza:', (face.score * 100).toFixed(1) + '%');
+    console.log('[FACE-DETECTOR]   Posición:', face.box);
 
     // Recortar la cara con el padding especificado
     const croppedCanvas = this._cropFaceWithPadding(img, face.box, padding);
@@ -76,7 +183,55 @@ class FaceDetector {
     const resizedCanvas = this._resizeCanvas(croppedCanvas, targetSize);
 
     // Convertir a base64
-    return resizedCanvas.toDataURL('image/jpeg', 0.92);
+    const imageBase64 = resizedCanvas.toDataURL('image/jpeg', 0.92);
+    
+    // Solo necesita selección manual si NO hay ninguna cara con >60% de confianza
+    const hasHighConfidenceFace = sortedDetections.some(d => d.score >= minConfidence);
+    const needsManualSelection = !hasHighConfidenceFace;
+    
+    console.log('[FACE-DETECTOR] Resultado final:');
+    console.log('[FACE-DETECTOR]   needsManualSelection:', needsManualSelection);
+    console.log('[FACE-DETECTOR]   hasHighConfidenceFace:', hasHighConfidenceFace);
+    console.log('[FACE-DETECTOR]   totalFaces:', sortedDetections.length);
+    console.log('[FACE-DETECTOR]   confidence:', face.score);
+    
+    return {
+      needsManualSelection,
+      imageBase64,
+      confidence: face.score,
+      totalFaces: sortedDetections.length
+    };
+  }
+
+  /**
+   * Detecta todas las caras en una imagen y retorna información detallada
+   * @param {string} imageSource - Imagen en base64 o URL
+   * @param {object} options - Opciones de configuración
+   * @returns {Promise<object>} - Objeto con todas las caras detectadas
+   */
+  async getAllFacesFromDocument(imageSource, options = {}) {
+    const result = await this.extractFaceFromDocument(imageSource, {
+      ...options,
+      returnAllFaces: true
+    });
+    return result;
+  }
+
+  /**
+   * Extrae una cara específica por índice
+   * @param {string} imageSource - Imagen en base64 o URL
+   * @param {number} faceIndex - Índice de la cara a extraer
+   * @param {object} options - Opciones de configuración
+   * @returns {Promise<string>} - Imagen recortada en base64
+   */
+  async extractSpecificFace(imageSource, faceIndex, options = {}) {
+    const allFaces = await this.getAllFacesFromDocument(imageSource, options);
+    
+    if (!allFaces.faces || faceIndex >= allFaces.faces.length) {
+      throw new Error('Índice de cara inválido');
+    }
+    
+    return allFaces.faces[faceIndex].imageBase64;
   }
 
   /**

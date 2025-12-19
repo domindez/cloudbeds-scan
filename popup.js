@@ -55,6 +55,16 @@ const progressTokenUsage = document.getElementById('progressTokenUsage');
 // Elementos adicionales
 const uploadPhotoCheckbox = document.getElementById('uploadPhotoCheckbox');
 const faceDetectionError = document.getElementById('faceDetectionError');
+const faceSelector = document.getElementById('faceSelector');
+const faceSelectorGrid = document.getElementById('faceSelectorGrid');
+const faceSelectorDni = document.getElementById('faceSelectorDni');
+const faceSelectorGridDni = document.getElementById('faceSelectorGridDni');
+const noPhotoBtn = document.getElementById('noPhotoBtn');
+const noPhotoBtnDni = document.getElementById('noPhotoBtnDni');
+
+// Variables para almacenar resultados de detección
+let detectedFaces = null;
+let selectedFaceIndex = 0;
 
 // Inicialización
 document.addEventListener('DOMContentLoaded', async () => {
@@ -99,6 +109,21 @@ retryBtn.addEventListener('click', async () => {
 // Cancelar y volver
 cancelBtn.addEventListener('click', () => {
   hideProgressView();
+});
+
+// Botones "Sin foto"
+noPhotoBtn.addEventListener('click', () => {
+  console.log('[DEBUG] Usuario eligió continuar sin foto');
+  imageToUpload = null;
+  faceSelector.classList.add('hidden');
+  faceDetectionError.classList.remove('hidden');
+});
+
+noPhotoBtnDni.addEventListener('click', () => {
+  console.log('[DEBUG] Usuario eligió continuar sin foto (DNI)');
+  imageToUpload = null;
+  faceSelectorDni.classList.add('hidden');
+  faceDetectionError.classList.remove('hidden');
 });
 
 // Manejo de pestañas
@@ -227,11 +252,20 @@ fileInputMultiple.addEventListener('change', (e) => {
 
 // Función para intentar extraer la cara del documento
 async function attemptFaceExtraction() {
-  // Ocultar mensaje de error previo
+  console.log('[DEBUG] attemptFaceExtraction - Iniciando...');
+  console.log('[DEBUG] uploadPhotoCheckbox.checked:', uploadPhotoCheckbox.checked);
+  console.log('[DEBUG] isDniMode:', isDniMode);
+  
+  // Ocultar mensajes previos
   faceDetectionError.classList.add('hidden');
+  faceSelector.classList.add('hidden');
+  faceSelectorDni.classList.add('hidden');
+  detectedFaces = null;
+  selectedFaceIndex = 0;
   
   // Si la opción de subir foto no está activada, usar imagen completa o DNI según corresponda
   if (!uploadPhotoCheckbox.checked) {
+    console.log('[DEBUG] Subida de foto desactivada, usando imagen completa');
     if (isDniMode) {
       imageToUpload = selectedImages[1]; // Imagen 2 del DNI (anverso)
     } else {
@@ -242,64 +276,234 @@ async function attemptFaceExtraction() {
   
   // Si no hay face detector disponible, no intentar
   if (!window.faceDetector) {
-    console.warn('⚠️ Face detector no disponible');
+    console.error('[DEBUG] Face detector NO disponible');
     imageToUpload = null;
     return;
   }
   
+  console.log('[DEBUG] Face detector disponible, procediendo con extracción...');
+  
   // Intentar extraer la cara
   if (isDniMode) {
     // Para DNI: intentar con ambas imágenes
-    const [img1, img2] = selectedImages;
-    try {
-      console.log('Extrayendo foto del DNI (intentando imagen 1)...');
-      const faceImage = await window.faceDetector.extractFaceFromDocument(img1, {
-        padding: 0.3,
-        minConfidence: 0.4,
-        targetSize: 500
-      });
-      imageToUpload = faceImage;
-      console.log('✓ Foto del huésped extraída de imagen 1');
-      faceDetectionError.classList.add('hidden');
-    } catch (error1) {
-      try {
-        console.log('Extrayendo foto del DNI (intentando imagen 2)...');
-        const faceImage = await window.faceDetector.extractFaceFromDocument(img2, {
-          padding: 0.3,
-          minConfidence: 0.4,
-          targetSize: 500
-        });
-        imageToUpload = faceImage;
-        console.log('✓ Foto del huésped extraída de imagen 2');
-        faceDetectionError.classList.add('hidden');
-      } catch (error2) {
-        console.warn('⚠️ No se detectó cara en ninguna imagen del DNI');
-        imageToUpload = null;
-        if (uploadPhotoCheckbox.checked) {
-          faceDetectionError.classList.remove('hidden');
-        }
-      }
-    }
+    await attemptDniFaceExtraction();
   } else {
     // Para imagen única
-    try {
-      console.log('Extrayendo foto del documento...');
-      const faceImage = await window.faceDetector.extractFaceFromDocument(selectedImage, {
+    await attemptSingleImageFaceExtraction();
+  }
+}
+
+// Extraer cara de DNI (intentar con ambas imágenes)
+async function attemptDniFaceExtraction() {
+  const [img1, img2] = selectedImages;
+  console.log('[DEBUG] attemptDniFaceExtraction - Intentando con DNI (2 imágenes)');
+  
+  let lastError = null;
+  
+  // Intentar con imagen 1
+  try {
+    console.log('[DEBUG] Procesando imagen 1 del DNI...');
+    const result = await window.faceDetector.extractFaceFromDocument(img1, {
+      padding: 0.3,
+      minConfidence: 0.6,
+      targetSize: 500
+    });
+    
+    console.log('[DEBUG] Resultado imagen 1:', {
+      needsManualSelection: result.needsManualSelection,
+      confidence: result.confidence,
+      totalFaces: result.totalFaces
+    });
+    
+    if (result.needsManualSelection) {
+      console.log('[DEBUG] Necesita selección manual, obteniendo todas las caras...');
+      // Obtener todas las caras para selección manual
+      const allFaces = await window.faceDetector.getAllFacesFromDocument(img1, {
         padding: 0.3,
-        minConfidence: 0.4,
         targetSize: 500
       });
-      imageToUpload = faceImage;
-      console.log('✓ Foto del huésped extraída correctamente');
+      console.log('[DEBUG] Caras detectadas:', allFaces.faces?.length || 0);
+      await showFaceSelector(allFaces);
+      return;
+    } else {
+      imageToUpload = result.imageBase64;
+      console.log(`[DEBUG] ✓ Foto automática de imagen 1 (${(result.confidence * 100).toFixed(1)}%)`);
       faceDetectionError.classList.add('hidden');
-    } catch (error) {
-      console.warn('⚠️ No se pudo extraer la foto:', error.message);
-      imageToUpload = null;
-      if (uploadPhotoCheckbox.checked) {
-        faceDetectionError.classList.remove('hidden');
-      }
+      return;
+    }
+  } catch (error1) {
+    console.log('[DEBUG] Error en imagen 1:', error1.message);
+    lastError = error1;
+  }
+  
+  // Intentar con imagen 2
+  try {
+    console.log('[DEBUG] Procesando imagen 2 del DNI...');
+    const result = await window.faceDetector.extractFaceFromDocument(img2, {
+      padding: 0.3,
+      minConfidence: 0.6,
+      targetSize: 500
+    });
+    
+    console.log('[DEBUG] Resultado imagen 2:', {
+      needsManualSelection: result.needsManualSelection,
+      confidence: result.confidence,
+      totalFaces: result.totalFaces
+    });
+    
+    if (result.needsManualSelection) {
+      console.log('[DEBUG] Necesita selección manual, obteniendo todas las caras...');
+      // Obtener todas las caras para selección manual
+      const allFaces = await window.faceDetector.getAllFacesFromDocument(img2, {
+        padding: 0.3,
+        targetSize: 500
+      });
+      console.log('[DEBUG] Caras detectadas:', allFaces.faces?.length || 0);
+      await showFaceSelector(allFaces);
+      return;
+    } else {
+      imageToUpload = result.imageBase64;
+      console.log(`[DEBUG] ✓ Foto automática de imagen 2 (${(result.confidence * 100).toFixed(1)}%)`);
+      faceDetectionError.classList.add('hidden');
+      return;
+    }
+  } catch (error2) {
+    console.log('[DEBUG] Error en imagen 2:', error2.message);
+    lastError = error2;
+  }
+  
+  // Si llegamos aquí, no se detectó ninguna cara
+  console.error('[DEBUG] ⚠️ No se detectó cara en ninguna imagen del DNI');
+  console.error('[DEBUG] Último error:', lastError?.message);
+  imageToUpload = null;
+  if (uploadPhotoCheckbox.checked) {
+    faceDetectionError.classList.remove('hidden');
+  }
+}
+
+// Extraer cara de imagen única
+async function attemptSingleImageFaceExtraction() {
+  console.log('[DEBUG] attemptSingleImageFaceExtraction - Procesando imagen única...');
+  
+  try {
+    const result = await window.faceDetector.extractFaceFromDocument(selectedImage, {
+      padding: 0.3,
+      minConfidence: 0.6,
+      targetSize: 500
+    });
+    
+    console.log('[DEBUG] Resultado detección:', {
+      needsManualSelection: result.needsManualSelection,
+      confidence: result.confidence,
+      totalFaces: result.totalFaces,
+      hasImageBase64: !!result.imageBase64
+    });
+    
+    if (result.needsManualSelection) {
+      console.log('[DEBUG] Necesita selección manual, obteniendo todas las caras...');
+      // Obtener todas las caras para selección manual
+      const allFaces = await window.faceDetector.getAllFacesFromDocument(selectedImage, {
+        padding: 0.3,
+        targetSize: 500
+      });
+      console.log('[DEBUG] Caras detectadas para selección:', allFaces.faces?.length || 0);
+      await showFaceSelector(allFaces);
+    } else {
+      imageToUpload = result.imageBase64;
+      console.log(`[DEBUG] ✓ Foto automática extraída (${(result.confidence * 100).toFixed(1)}%)`);
+      faceDetectionError.classList.add('hidden');
+    }
+  } catch (error) {
+    console.error('[DEBUG] ⚠️ Error extrayendo foto:', error.message);
+    console.error('[DEBUG] Stack:', error.stack);
+    imageToUpload = null;
+    if (uploadPhotoCheckbox.checked) {
+      faceDetectionError.classList.remove('hidden');
     }
   }
+}
+
+// Mostrar selector de caras
+async function showFaceSelector(allFaces) {
+  console.log('[DEBUG] showFaceSelector - Recibido:', allFaces);
+  console.log('[DEBUG] isDniMode:', isDniMode);
+  
+  if (!allFaces || !allFaces.faces || allFaces.faces.length === 0) {
+    console.error('[DEBUG] No hay caras para mostrar en el selector');
+    imageToUpload = null;
+    faceDetectionError.classList.remove('hidden');
+    return;
+  }
+  
+  console.log('[DEBUG] Mostrando selector con', allFaces.faces.length, 'caras');
+  console.log('[DEBUG] Mejor cara (índice):', allFaces.bestFaceIndex);
+  console.log('[DEBUG] Confianza más alta:', allFaces.highestConfidence);
+  
+  detectedFaces = allFaces;
+  selectedFaceIndex = allFaces.bestFaceIndex || 0;
+  
+  // Seleccionar el grid correcto según el modo
+  const currentGrid = isDniMode ? faceSelectorGridDni : faceSelectorGrid;
+  const currentSelector = isDniMode ? faceSelectorDni : faceSelector;
+  
+  console.log('[DEBUG] Usando grid:', isDniMode ? 'faceSelectorGridDni' : 'faceSelectorGrid');
+  
+  // Limpiar grid anterior
+  currentGrid.innerHTML = '';
+  
+  // Crear opciones para cada cara detectada
+  allFaces.faces.forEach((face, index) => {
+    const option = document.createElement('div');
+    option.className = 'face-option';
+    if (index === selectedFaceIndex) {
+      option.classList.add('selected');
+    }
+    
+    const img = document.createElement('img');
+    img.src = face.imageBase64;
+    img.alt = `Opción ${index + 1}`;
+    
+    const label = document.createElement('div');
+    label.className = 'face-option-label';
+    
+    // Resaltar la mejor opción (más confianza)
+    const isBest = index === selectedFaceIndex;
+    label.innerHTML = `
+      <span class="face-number">Opción ${index + 1}${isBest ? ' ⭐' : ''}</span>
+      <span class="face-confidence">${(face.confidence * 100).toFixed(0)}% confianza</span>
+    `;
+    
+    option.appendChild(img);
+    option.appendChild(label);
+    
+    option.addEventListener('click', () => {
+      console.log('[DEBUG] Click en cara', index + 1);
+      // Remover selección anterior
+      document.querySelectorAll('.face-option').forEach(opt => {
+        opt.classList.remove('selected');
+      });
+      
+      // Seleccionar esta opción
+      option.classList.add('selected');
+      selectedFaceIndex = index;
+      imageToUpload = face.imageBase64;
+      
+      console.log(`[DEBUG] ✓ Cara ${index + 1} seleccionada manualmente (confianza: ${(face.confidence * 100).toFixed(1)}%)`);
+    });
+    
+    currentGrid.appendChild(option);
+  });
+  
+  // Establecer la mejor cara por defecto
+  imageToUpload = allFaces.faces[selectedFaceIndex].imageBase64;
+  console.log('[DEBUG] Imagen por defecto establecida (índice:', selectedFaceIndex, ')');
+  
+  // Mostrar el selector correcto
+  currentSelector.classList.remove('hidden');
+  faceDetectionError.classList.add('hidden');
+  
+  console.log(`[DEBUG] ✓ Selector mostrado con ${allFaces.faces.length} caras`);
+  console.log(`[DEBUG] ⚠️ Selección manual habilitada`);
 }
 
 // Procesar imagen seleccionada
@@ -377,6 +581,8 @@ function clearAllImages() {
   imageToUpload = null;
   isDniMode = false;
   extractedData = null;
+  detectedFaces = null;
+  selectedFaceIndex = 0;
   preview.classList.add('hidden');
   previewDni.classList.add('hidden');
   dropZone.classList.remove('hidden');
@@ -386,6 +592,8 @@ function clearAllImages() {
   fileInput.value = '';
   hideStatusMessage();
   faceDetectionError.classList.add('hidden');
+  faceSelector.classList.add('hidden');
+  faceSelectorDni.classList.add('hidden');
 }
 
 // Verificar si el formulario está en modo edición
