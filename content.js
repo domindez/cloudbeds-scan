@@ -52,7 +52,7 @@ async function fillGuestForm(data, imageToUpload) {
     try {
       photoUploaded = await uploadGuestPhoto(imageToUpload);
     } catch (uploadError) {
-      console.error('Error en subida paralela de foto:', uploadError);
+      
     }
     return { success: true, filledCount: 0, photoUploaded };
   }
@@ -1305,19 +1305,26 @@ function getCountryName(value) {
 // Función para subir la foto del documento del huésped
 async function uploadGuestPhoto(imageBase64) {
   
+  
   // Convertir base64 a File
   const file = base64ToFile(imageBase64, 'documento.jpg');
   if (!file) {
+    
     return false;
   }
   
-  // Usar siempre el modal - la subida directa no asocia la imagen al huésped
-  return await tryModalUpload(file);
+  
+  // � NOTA: No usamos subida directa por aislamiento de seguridad del content script
+  // Dropzone.js no es accesible desde el contexto del content script (restricción del navegador)
+  // Usamos modal con drag&drop nativo + inyección de script si es necesario
+  
+  const result = await tryModalUpload(file);
+  
+  return result;
 }
 
-// Subir usando el modal
+// ⏮️ FALLBACK: Subir usando el modal (respaldo si Dropzone directo no funciona)
 async function tryModalUpload(file) {
-  // Primero, cerrar cualquier modal abierto
   const existingModal = document.querySelector('.modal.in, .modal.show');
   if (existingModal) {
     const closeBtn = existingModal.querySelector('button.close[data-dismiss="modal"]');
@@ -1327,19 +1334,14 @@ async function tryModalUpload(file) {
     }
   }
   
-  // Buscar el botón de subir foto
   const uploadBtn = document.querySelector('button[data-hook="guest-photo-upload"]');
   if (!uploadBtn) {
     return false;
   }
   
-  // Hacer clic en el botón para abrir el modal
   uploadBtn.click();
-  
-  // Esperar a que aparezca el modal con el dropzone
   await sleep(1000);
   
-  // Buscar el dropzone de Dropzone.js
   const dropzoneForm = document.querySelector('form.dropzone[id^="my-dropzone-photoupload"]');
   if (!dropzoneForm) {
     const closeBtn = document.querySelector('.modal-content button.close[data-dismiss="modal"]');
@@ -1347,17 +1349,19 @@ async function tryModalUpload(file) {
     return false;
   }
   
-  
   // Crear DataTransfer con el archivo
+  
   const dataTransfer = new DataTransfer();
   dataTransfer.items.add(file);
   
   // Simular la secuencia completa de drag & drop
+  
   const rect = dropzoneForm.getBoundingClientRect();
   const centerX = rect.left + rect.width / 2;
   const centerY = rect.top + rect.height / 2;
   
   // Dragenter
+  
   dropzoneForm.dispatchEvent(new DragEvent('dragenter', {
     bubbles: true,
     cancelable: true,
@@ -1369,6 +1373,7 @@ async function tryModalUpload(file) {
   await sleep(50);
   
   // Dragover (necesario para que acepte el drop)
+  
   dropzoneForm.dispatchEvent(new DragEvent('dragover', {
     bubbles: true,
     cancelable: true,
@@ -1380,6 +1385,7 @@ async function tryModalUpload(file) {
   await sleep(50);
   
   // Drop
+  
   const dropEvent = new DragEvent('drop', {
     bubbles: true,
     cancelable: true,
@@ -1397,19 +1403,73 @@ async function tryModalUpload(file) {
   const dzPreview = dropzoneForm.querySelector('.dz-preview');
   const step1Hidden = document.querySelector('#step_1.hide');
   
+  
+  
   if (!dzPreview && !step1Hidden) {
+    
+
     await injectDropzoneUpload(file, dropzoneForm.id);
   }
   
-  // Esperar a que se procese y suba
-  await sleep(4000);
+  // 🚀 OPTIMIZACIÓN: Espera inteligente en lugar de 4000ms fijos
+  // Detectar cuándo el botón "Listo" está disponible en lugar de esperar ciegamente
+  let doneBtn = null;
+  let waitTime = 0;
+  const maxWait = 4000;
+  const checkInterval = 100; // Verificar cada 100ms
+  
+  while (waitTime < maxWait) {
+    doneBtn = document.querySelector('.control-steps.step_2:not(.hide) .btn.blue.done');
+    if (doneBtn) {
+      // Verificaciones más estrictas de que esté visible y habilitado
+      const style = window.getComputedStyle(doneBtn);
+      const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+      const isClickable = !doneBtn.disabled && doneBtn.offsetParent !== null;
+      
+      if (isVisible && isClickable) {
+        break;
+      }
+    }
+    await sleep(checkInterval);
+    waitTime += checkInterval;
+  }
+  
+  if (!doneBtn || window.getComputedStyle(doneBtn).display === 'none') {
+    
+    await sleep(1000);
+  }
   
   // Intentar hacer clic en los diferentes botones según el paso
   // Step 2: botón "Listo"
-  let doneBtn = document.querySelector('.control-steps.step_2:not(.hide) .btn.blue.done');
+  doneBtn = document.querySelector('.control-steps.step_2:not(.hide) .btn.blue.done');
   if (doneBtn) {
     doneBtn.click();
-    await sleep(1000);
+    
+    // 🚀 OPTIMIZACIÓN: Espera inteligente para Step 3 en lugar de 1500ms fijos
+    let saveBtn = null;
+    let waitTime = 0;
+    const maxWaitStep3 = 3000;
+    const checkIntervalStep3 = 100;
+    
+    while (waitTime < maxWaitStep3) {
+      saveBtn = document.querySelector('.control-steps.step_3:not(.hide) .btn.blue.save-uploader');
+      if (saveBtn) {
+        const style = window.getComputedStyle(saveBtn);
+        const isVisible = style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+        const isClickable = !saveBtn.disabled && saveBtn.offsetParent !== null;
+        
+        if (isVisible && isClickable) {
+          break;
+        }
+      }
+      await sleep(checkIntervalStep3);
+      waitTime += checkIntervalStep3;
+    }
+    
+    if (!saveBtn || window.getComputedStyle(saveBtn).display === 'none') {
+      
+      await sleep(500);
+    }
   }
   
   // Step 3: botón "Guardar y continuar"
@@ -1417,6 +1477,7 @@ async function tryModalUpload(file) {
   if (saveBtn) {
     saveBtn.click();
     await sleep(500);
+    
     return true;
   }
   
@@ -1435,10 +1496,12 @@ async function tryModalUpload(file) {
 
 // Inyectar script para acceder a Dropzone desde el contexto de la página
 function injectDropzoneUpload(file, dropzoneId) {
+  
   return new Promise((resolve) => {
     // Convertir el archivo a base64 en chunks para evitar límite de argumentos
     const reader = new FileReader();
     reader.onload = function(e) {
+      
       const base64Full = e.target.result; // ya viene como data:...;base64,...
       
       // Crear script que se ejecutará en el contexto de la página
@@ -1487,11 +1550,14 @@ function injectDropzoneUpload(file, dropzoneId) {
         })();
       `;
       
+      
       document.head.appendChild(script);
       script.remove();
       
       setTimeout(() => {
-        resolve(window.__dzUploadResult === true);
+        const result = window.__dzUploadResult === true;
+        
+        resolve(result);
       }, 500);
     };
     
