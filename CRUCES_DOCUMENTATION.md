@@ -15,15 +15,19 @@ Para cada habitación, el sistema marca automáticamente:
 ## 📝 Cómo usar
 
 1. **Navega al calendario de Cloudbeds**
+
    - Asegúrate de estar en la página del calendario (https://hotels.cloudbeds.com/connect/...)
 
 2. **Abre la extensión**
+
    - Haz clic en el icono de la extensión en Chrome
 
 3. **Selecciona la pestaña "Papel de Cruces"**
+
    - Verás la nueva pestaña entre "Escanear" y "Ajustes"
 
 4. **Selecciona la fecha**
+
    - Por defecto se carga la fecha actual
    - Puedes cambiarla usando el selector de fecha
 
@@ -47,31 +51,34 @@ El Excel generado contiene:
 ## 🔍 Ejemplos
 
 ### Ejemplo 1: Habitación con entrada
+
 ```
 Habitación: 101
 Tipo: HABITACION DOBLE
 Entrada: X
-Ocupada: 
-Salida: 
+Ocupada:
+Salida:
 Huésped: Juan García
 ```
 
 ### Ejemplo 2: Habitación ocupada (continuación)
+
 ```
 Habitación: 202
 Tipo: HABITACION INDIVIDUAL
-Entrada: 
+Entrada:
 Ocupada: X
-Salida: 
+Salida:
 Huésped: María López
 ```
 
 ### Ejemplo 3: Habitación con salida
+
 ```
 Habitación: 303
 Tipo: HABITACION TRIPLE
-Entrada: 
-Ocupada: 
+Entrada:
+Ocupada:
 Salida: X
 Huésped: Pedro Martínez
 ```
@@ -85,15 +92,18 @@ Huésped: Pedro Martínez
 ## 🐛 Solución de problemas
 
 ### "Debes estar en la página de Cloudbeds"
+
 - Asegúrate de estar en `hotels.cloudbeds.com`
 - Navega al calendario antes de usar la función
 
 ### "No se pudieron extraer los datos del calendario"
+
 - Recarga la página del calendario
 - Espera a que el calendario se cargue completamente
 - Verifica que estás en la vista del calendario (no en otra sección)
 
 ### El Excel está vacío o faltan datos
+
 - Verifica que la fecha seleccionada tenga reservas
 - Asegúrate de que el calendario muestra las habitaciones
 - Intenta con otra fecha para confirmar que funciona
@@ -101,6 +111,7 @@ Huésped: Pedro Martínez
 ## 🔧 Tecnología
 
 La funcionalidad utiliza:
+
 - **Extracción de datos**: Analiza el DOM del calendario de Cloudbeds
 - **Procesamiento**: Determina el estado de cada habitación según las reservas
 - **Generación de Excel**: Utiliza la librería SheetJS (xlsx) para crear el archivo Excel
@@ -109,6 +120,7 @@ La funcionalidad utiliza:
 ## 📚 Mantenimiento
 
 Si Cloudbeds cambia la estructura de su calendario, puede ser necesario actualizar los selectores CSS en `cruces.js`:
+
 - `.c-rt-and-rooms`: Contenedor de tipos de habitación
 - `.c-collaps`: Nombre del tipo de habitación
 - `.c-room`: Habitaciones individuales
@@ -118,6 +130,7 @@ Si Cloudbeds cambia la estructura de su calendario, puede ser necesario actualiz
 ## 💡 Mejoras futuras
 
 Posibles mejoras a implementar:
+
 - Exportar también a PDF
 - Añadir estadísticas (% ocupación, entradas/salidas totales)
 - Filtrar por tipo de habitación

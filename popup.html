@@ -113,26 +113,22 @@
 				<!-- Mensajes de estado -->
 				<div id="statusMessage" class="status-message hidden"></div>
 			</div>
-		<!-- Tab Content: Cruces -->
-		<div id="tab-cruces" class="tab-content">
-			<div class="cruces-section">
-				<h3>Hoja de Cruces</h3>
-				<p class="cruces-description">
-					Genera un Excel mostrando entradas, ocupadas y salidas del día.
-				</p>
-				
-				<div class="cruces-date-selector">
-					<label class="settings-label">Seleccionar fecha:</label>
-					<input type="date" id="crucesDate" class="cruces-date-input" />
+			<!-- Tab Content: Cruces -->
+			<div id="tab-cruces" class="tab-content">
+				<div class="cruces-section">
+					<h3>Hoja de Cruces</h3>
+					<p class="cruces-description">Genera un Excel mostrando entradas, ocupadas y salidas del día.</p>
+
+					<div class="cruces-date-selector">
+						<label class="settings-label">Seleccionar fecha:</label>
+						<input type="date" id="crucesDate" class="cruces-date-input" />
+					</div>
+
+					<button id="generateCrucesBtn" class="btn btn-action btn-full">Generar papel de cruces</button>
+
+					<div id="crucesStatus" class="status-message hidden"></div>
 				</div>
-
-				<button id="generateCrucesBtn" class="btn btn-action btn-full">
-					Generar papel de cruces
-				</button>
-
-				<div id="crucesStatus" class="status-message hidden"></div>
 			</div>
-		</div>
 			<!-- Vista de progreso (se muestra al escanear) -->
 			<div id="progressView" class="progress-view hidden">
 				<div class="progress-header">

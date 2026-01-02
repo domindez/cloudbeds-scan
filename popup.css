@@ -1064,7 +1064,7 @@ input:focus {
 }
 
 .cruces-info li::before {
-	content: "•";
+	content: '•';
 	color: var(--primary);
 	font-weight: bold;
 	margin-right: 8px;
