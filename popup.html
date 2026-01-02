@@ -18,6 +18,7 @@
 			<!-- Tabs -->
 			<div class="tabs">
 				<button class="tab active" data-tab="scan">Escanear</button>
+				<button class="tab" data-tab="cruces">Cruces</button>
 				<button class="tab" data-tab="settings">Ajustes</button>
 			</div>
 
@@ -112,7 +113,26 @@
 				<!-- Mensajes de estado -->
 				<div id="statusMessage" class="status-message hidden"></div>
 			</div>
+		<!-- Tab Content: Cruces -->
+		<div id="tab-cruces" class="tab-content">
+			<div class="cruces-section">
+				<h3>Hoja de Cruces</h3>
+				<p class="cruces-description">
+					Genera un Excel mostrando entradas, ocupadas y salidas del día.
+				</p>
+				
+				<div class="cruces-date-selector">
+					<label class="settings-label">Seleccionar fecha:</label>
+					<input type="date" id="crucesDate" class="cruces-date-input" />
+				</div>
 
+				<button id="generateCrucesBtn" class="btn btn-action btn-full">
+					Generar papel de cruces
+				</button>
+
+				<div id="crucesStatus" class="status-message hidden"></div>
+			</div>
+		</div>
 			<!-- Vista de progreso (se muestra al escanear) -->
 			<div id="progressView" class="progress-view hidden">
 				<div class="progress-header">
@@ -209,7 +229,9 @@
 		</div>
 
 		<script src="lib/face-api.min.js"></script>
+		<script src="lib/exceljs.min.js"></script>
 		<script src="face-detector.js"></script>
+		<script src="cruces.js"></script>
 		<script src="popup.js"></script>
 	</body>
 </html>

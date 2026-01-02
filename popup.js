@@ -1563,3 +1563,84 @@ loadDniBtn.addEventListener('click', async () => {
     showStatusMessage(`Error: ${error.message}`, 'error');
   }
 });
+// ========================================
+// PAPEL DE CRUCES
+// ========================================
+
+// Inicializar fecha con la fecha de hoy
+document.addEventListener('DOMContentLoaded', () => {
+  const crucesDateInput = document.getElementById('crucesDate');
+  if (crucesDateInput) {
+    const today = new Date().toISOString().split('T')[0];
+    crucesDateInput.value = today;
+  }
+});
+
+// Botón para generar el papel de cruces
+const generateCrucesBtn = document.getElementById('generateCrucesBtn');
+const crucesStatus = document.getElementById('crucesStatus');
+
+if (generateCrucesBtn) {
+  generateCrucesBtn.addEventListener('click', async () => {
+    try {
+      // Obtener fecha seleccionada
+      const crucesDateInput = document.getElementById('crucesDate');
+      const selectedDate = crucesDateInput.value;
+
+      if (!selectedDate) {
+        showCrucesStatus('Por favor selecciona una fecha', 'error');
+        return;
+      }
+
+      // Deshabilitar botón y mostrar loading
+      generateCrucesBtn.disabled = true;
+      generateCrucesBtn.innerHTML = '⏳ Generando...';
+      showCrucesStatus('Extrayendo datos del calendario...', 'info');
+
+      // Generar el papel de cruces
+      await generatePapelCruces(selectedDate);
+
+      // Éxito
+      showCrucesStatus('✅ Excel generado correctamente', 'success');
+      generateCrucesBtn.innerHTML = '📊 Generar Excel';
+      generateCrucesBtn.disabled = false;
+
+      // Ocultar mensaje después de 3 segundos
+      setTimeout(() => {
+        hideCrucesStatus();
+      }, 3000);
+
+    } catch (error) {
+      console.error('Error al generar papel de cruces:', error);
+      showCrucesStatus(`❌ Error: ${error.message}`, 'error');
+      generateCrucesBtn.innerHTML = '📊 Generar Excel';
+      generateCrucesBtn.disabled = false;
+    }
+  });
+}
+
+function showCrucesStatus(message, type) {
+  if (!crucesStatus) return;
+  
+  crucesStatus.textContent = message;
+  crucesStatus.className = 'status-message';
+  
+  if (type === 'success') {
+    crucesStatus.style.color = 'var(--success)';
+    crucesStatus.style.background = '#d1fae5';
+  } else if (type === 'error') {
+    crucesStatus.style.color = 'var(--error)';
+    crucesStatus.style.background = '#fee2e2';
+  } else if (type === 'info') {
+    crucesStatus.style.color = 'var(--primary)';
+    crucesStatus.style.background = 'var(--primary-light)';
+  }
+  
+  crucesStatus.classList.remove('hidden');
+}
+
+function hideCrucesStatus() {
+  if (crucesStatus) {
+    crucesStatus.classList.add('hidden');
+  }
+}

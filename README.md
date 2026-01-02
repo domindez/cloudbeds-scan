@@ -12,6 +12,7 @@ A Chrome extension that scans identity documents (ID cards, passports, driver's 
 - 🛂 **Multiple documents** - Compatible with passports, driver's licenses, and other ID documents
 - 🤖 **Advanced AI** - Uses OpenAI's GPT-5-mini for high-precision data extraction
 - 📝 **Auto-fill** - Automatically fills Cloudbeds guest form fields
+- 📊 **Papel de Cruces** - Generates Excel reports with room status (check-in, occupied, check-out)
 - 🏙️ **Spanish municipalities** - Built-in database for Spanish city autocomplete
 - 🌍 **Nationalities** - Multi-language nationality recognition
 
@@ -42,6 +43,8 @@ A Chrome extension that scans identity documents (ID cards, passports, driver's 
 
 ## 🚀 Usage
 
+### Scanning Documents
+
 1. Open Cloudbeds and navigate to a guest form
 2. Click on **"Edit details"** for the guest
 3. Open the ID Scanner extension
@@ -50,6 +53,17 @@ A Chrome extension that scans identity documents (ID cards, passports, driver's 
    - **Other document**: Loads the last scanned image
 5. Click **"Scan and fill"**
 6. Done! The fields will be filled automatically
+
+### Generating Papel de Cruces
+
+1. Navigate to the Cloudbeds calendar page
+2. Open the extension
+3. Click on the **"Papel de Cruces"** tab
+4. Select the desired date
+5. Click **"📊 Generar Excel"**
+6. The Excel file will download automatically with room status organized by floor
+
+For more details about the Papel de Cruces feature, see [CRUCES_DOCUMENTATION.md](CRUCES_DOCUMENTATION.md).
 
 ## 🔑 Requirements
 
