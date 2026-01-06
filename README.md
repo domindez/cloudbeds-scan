@@ -78,6 +78,7 @@ For more details about the Papel de Cruces feature, see [CRUCES_DOCUMENTATION.md
    - **Competencia**: Shows competitor prices organized by occupancy (Single, Double, Triple)
 
 The price comparison automatically:
+
 - Extracts real-time prices from your CloudBeds calendar for the selected date range
 - Fetches competitor prices from Booking.com
 - Displays the total price for multi-night stays
