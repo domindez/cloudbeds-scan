@@ -1,5 +1,20 @@
 // Content script para interactuar con la página de Cloudbeds
 
+// Inicializar el comparador de precios cuando el DOM esté listo
+// El código de PriceComparator se carga automáticamente desde price-comparator.js (content_script)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    if (typeof PriceComparator !== 'undefined') {
+      new PriceComparator();
+    }
+  });
+} else {
+  // Si el DOM ya está listo, inicializar inmediatamente
+  if (typeof PriceComparator !== 'undefined') {
+    new PriceComparator();
+  }
+}
+
 // Escuchar mensajes del popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   

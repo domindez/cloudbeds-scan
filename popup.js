@@ -69,7 +69,7 @@ let selectedFaceIndex = 0;
 // Inicialización
 document.addEventListener('DOMContentLoaded', async () => {
   // Cargar configuración guardada
-  const stored = await chrome.storage.local.get(['openaiApiKey', 'scanFolderName', 'uploadPhoto']);
+  const stored = await chrome.storage.local.get(['openaiApiKey', 'scanFolderName', 'uploadPhoto', 'priceComparisonEnabled']);
   if (stored.openaiApiKey) {
     apiKeyInput.value = stored.openaiApiKey;
   }
@@ -79,6 +79,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Por defecto está desactivado
   uploadPhotoCheckbox.checked = stored.uploadPhoto === true;
   
+  // Por defecto la comparación de precios está activada
+  const priceComparisonCheckbox = document.getElementById('priceComparisonCheckbox');
+  if (priceComparisonCheckbox) {
+    priceComparisonCheckbox.checked = stored.priceComparisonEnabled !== false;
+  }
+  
   // Inicializar tabs
   initTabs();
 });
@@ -87,6 +93,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 uploadPhotoCheckbox.addEventListener('change', async () => {
   await chrome.storage.local.set({ uploadPhoto: uploadPhotoCheckbox.checked });
 });
+
+// Guardar preferencia de comparación de precios
+const priceComparisonCheckbox = document.getElementById('priceComparisonCheckbox');
+if (priceComparisonCheckbox) {
+  priceComparisonCheckbox.addEventListener('change', async () => {
+    await chrome.storage.local.set({ priceComparisonEnabled: priceComparisonCheckbox.checked });
+    // Notificar a todos los tabs de CloudBeds del cambio
+    chrome.tabs.query({ url: '*://*.cloudbeds.com/*' }, (tabs) => {
+      tabs.forEach(tab => {
+        chrome.tabs.sendMessage(tab.id, { 
+          action: 'togglePriceComparison', 
+          enabled: priceComparisonCheckbox.checked 
+        }).catch(() => {});
+      });
+    });
+  });
+}
 
 // Escanear otro documento
 scanAnotherBtn.addEventListener('click', () => {

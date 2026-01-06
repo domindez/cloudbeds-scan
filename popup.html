@@ -11,7 +11,10 @@
 			<!-- Header -->
 			<div class="header">
 				<div class="logo">
-					<span class="logo-text">Cloudbeds Companion <a href="https://github.com/domindez" target="_blank" rel="noopener" class="owner-tag">by Domindez</a></span>
+					<span class="logo-text"
+						>Cloudbeds Companion
+						<a href="https://github.com/domindez" target="_blank" rel="noopener" class="owner-tag">by Domindez</a></span
+					>
 				</div>
 			</div>
 
@@ -213,6 +216,25 @@
 						<input type="checkbox" id="uploadPhotoCheckbox" />
 						<span>Subir foto del huésped (extraída automáticamente del documento)</span>
 					</label>
+					<label class="checkbox-label">
+						<input type="checkbox" id="priceComparisonCheckbox" checked />
+						<span>Activar comparación de precios en el calendario</span>
+					</label>
+				</div>
+
+				<div class="settings-divider"></div>
+
+				<div class="settings-section">
+					<details class="settings-details">
+						<summary class="settings-label">Competidores para comparación de precios</summary>
+						<div class="competitors-manager">
+							<p class="settings-hint">Añade hoteles para comparar precios desde el calendario de CloudBeds</p>
+							<div id="competitorsList" class="competitors-list">
+								<!-- Los competidores se cargarán aquí -->
+							</div>
+							<button id="addCompetitorBtn" class="btn btn-secondary btn-full">➕ Añadir competidor</button>
+						</div>
+					</details>
 				</div>
 
 				<div class="settings-divider"></div>
@@ -229,5 +251,6 @@
 		<script src="face-detector.js"></script>
 		<script src="cruces.js"></script>
 		<script src="popup.js"></script>
+		<script src="popup-competitors.js"></script>
 	</body>
 </html>

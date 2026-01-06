@@ -1,19 +1,22 @@
 {
 	"manifest_version": 3,
 	"name": "Cloudbeds ID Scanner",
-	"version": "1.1.0",
-	"description": "Escanea documentos de identidad (pasaporte, DNI, etc.) y rellena automáticamente los datos del huésped en Cloudbeds",
-	"permissions": ["activeTab", "storage", "scripting"],
-	"host_permissions": ["https://*.cloudbeds.com/*", "https://api.openai.com/*"],
+	"version": "1.2.0",
+	"description": "Escanea documentos de identidad (pasaporte, DNI, etc.) y rellena automáticamente los datos del huésped en Cloudbeds. Incluye comparador de precios de competidores.",
+	"permissions": ["activeTab", "storage", "scripting", "tabs"],
+	"host_permissions": ["https://*.cloudbeds.com/*", "https://api.openai.com/*", "https://*.booking.com/*"],
 	"action": {
 		"default_popup": "popup.html",
 		"default_title": "Cloudbeds ID Scanner"
 	},
+	"background": {
+		"service_worker": "background-price-comparator.js"
+	},
 	"content_scripts": [
 		{
 			"matches": ["https://*.cloudbeds.com/*"],
-			"js": ["countries.js", "municipios.js", "content.js"],
-			"css": ["content.css"],
+			"js": ["countries.js", "municipios.js", "content.js", "price-comparator.js"],
+			"css": ["content.css", "price-comparator.css"],
 			"run_at": "document_idle"
 		}
 	],

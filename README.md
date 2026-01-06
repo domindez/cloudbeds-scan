@@ -12,7 +12,8 @@ A Chrome extension that scans identity documents (ID cards, passports, driver's 
 - 🛂 **Multiple documents** - Compatible with passports, driver's licenses, and other ID documents
 - 🤖 **Advanced AI** - Uses OpenAI's GPT-5-mini for high-precision data extraction
 - 📝 **Auto-fill** - Automatically fills Cloudbeds guest form fields
-- 📊 **Papel de Cruces** - Generates Excel reports with room status (check-in, occupied, check-out)
+- � **Price Comparison** - Compare your hotel prices with competitors from Booking.com directly from the calendar
+- �📊 **Papel de Cruces** - Generates Excel reports with room status (check-in, occupied, check-out)
 - 🏙️ **Spanish municipalities** - Built-in database for Spanish city autocomplete
 - 🌍 **Nationalities** - Multi-language nationality recognition
 
@@ -64,6 +65,24 @@ A Chrome extension that scans identity documents (ID cards, passports, driver's 
 6. The Excel file will download automatically with room status organized by floor
 
 For more details about the Papel de Cruces feature, see [CRUCES_DOCUMENTATION.md](CRUCES_DOCUMENTATION.md).
+
+### Comparing Prices with Competitors
+
+1. Navigate to the Cloudbeds calendar page
+2. Click the **"Comparar Precios"** floating button (magnifying glass icon)
+3. Configure your competitor hotels in the extension settings (Ajustes tab)
+4. Select check-in and check-out dates
+5. Click **"Obtener Precios"**
+6. View two comparison tables:
+   - **Mi Hotel**: Shows your 3 cheapest room types with actual prices from the calendar
+   - **Competencia**: Shows competitor prices organized by occupancy (Single, Double, Triple)
+
+The price comparison automatically:
+- Extracts real-time prices from your CloudBeds calendar for the selected date range
+- Fetches competitor prices from Booking.com
+- Displays the total price for multi-night stays
+- Orders your rooms from cheapest to most expensive
+- Shows only when you're on the calendar page
 
 ## 🔑 Requirements
 
