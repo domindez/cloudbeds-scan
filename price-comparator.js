@@ -236,6 +236,24 @@ class PriceComparator {
 			panel.classList.add('open');
 		} else {
 			panel.classList.remove('open');
+			// Limpiar resultados al cerrar
+			this.clearResults();
+		}
+	}
+
+	clearResults() {
+		const resultsDiv = document.getElementById('price-results');
+		if (resultsDiv) {
+			// Restaurar el mensaje inicial
+			resultsDiv.innerHTML = `
+				<div class="loading-container" style="display: none;">
+					<div class="spinner"></div>
+					<p class="loading-message">Obteniendo precios...</p>
+				</div>
+				<div class="info-container">
+					<p class="info-message">Selecciona las fechas de check-in y check-out, luego haz clic en "Obtener Precios" para comparar.</p>
+				</div>
+			`;
 		}
 	}
 
