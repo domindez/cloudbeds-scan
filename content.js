@@ -226,7 +226,6 @@ async function doFillForm(data) {
     }
   }
   
-  
   // Mapeo de campos - múltiples selectores para cada campo
   const fieldMappings = {
     firstName: [
@@ -568,13 +567,69 @@ async function fillMunicipalityField(city, province) {
     municipalityInput.disabled = false;
     municipalityInput.readOnly = false;
     
-    // Establecer el valor directamente
-    municipalityInput.value = bestMatch;
-    municipalityInput.dispatchEvent(new Event('input', { bubbles: true }));
-    municipalityInput.dispatchEvent(new Event('change', { bubbles: true }));
-    municipalityInput.dispatchEvent(new Event('blur', { bubbles: true }));
+    // SOLUCIÓN: Interactuar con Bootstrap Typeahead
+    try {
+      // Método 1: Usar jQuery y typeahead API si está disponible
+      if (typeof jQuery !== 'undefined') {
+        const $input = jQuery(municipalityInput);
+        
+        // Verificar si tiene typeahead inicializado
+        if ($input.data('typeahead')) {
+          // Focus en el input
+          $input.focus();
+          
+          // Establecer el valor y disparar evento input para abrir el dropdown
+          $input.val(bestMatch).trigger('input');
+          
+          // Esperar un momento para que se abra el dropdown
+          setTimeout(() => {
+            // Simular la selección desde el dropdown
+            $input.trigger('typeahead:select', [bestMatch]);
+            
+            // Disparar blur para cerrar
+            $input.blur();
+          }, 100);
+          
+          // Actualizar también el div estático
+          const formGroup = municipalityInput.closest('.form-group');
+          if (formGroup) {
+            const staticDiv = formGroup.querySelector('.form-control-static');
+            if (staticDiv) {
+              staticDiv.textContent = bestMatch;
+            }
+          }
+          
+          return true;
+        }
+      }
+      
+      // Método 2: Simular interacción del usuario
+      // Focus en el input
+      municipalityInput.focus();
+      
+      // Establecer el valor y disparar eventos de teclado
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+      nativeInputValueSetter.call(municipalityInput, bestMatch);
+      
+      // Simular eventos de escritura
+      municipalityInput.dispatchEvent(new KeyboardEvent('keydown', { key: bestMatch.charAt(bestMatch.length - 1), bubbles: true }));
+      municipalityInput.dispatchEvent(new Event('input', { bubbles: true }));
+      municipalityInput.dispatchEvent(new KeyboardEvent('keyup', { key: bestMatch.charAt(bestMatch.length - 1), bubbles: true }));
+      
+      // Esperar a que se abra el dropdown y simular Enter
+      setTimeout(() => {
+        municipalityInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
+        municipalityInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }, 150);
+      
+    } catch (error) {
+      // Fallback al método antiguo
+      municipalityInput.value = bestMatch;
+      municipalityInput.dispatchEvent(new Event('input', { bubbles: true }));
+      municipalityInput.dispatchEvent(new Event('change', { bubbles: true }));
+    }
     
-    // Actualizar el div estático si existe
+    // Actualizar el div estático
     const formGroup = municipalityInput.closest('.form-group');
     if (formGroup) {
       const staticDiv = formGroup.querySelector('.form-control-static');
@@ -674,13 +729,69 @@ function setNationalityValue(input, value) {
   input.disabled = false;
   input.readOnly = false;
   
-  // Establecer el valor directamente
-  input.value = value;
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-  input.dispatchEvent(new Event('change', { bubbles: true }));
-  input.dispatchEvent(new Event('blur', { bubbles: true }));
+  // SOLUCIÓN: Interactuar con Bootstrap Typeahead
+  try {
+    // Método 1: Usar jQuery y typeahead API si está disponible
+    if (typeof jQuery !== 'undefined') {
+      const $input = jQuery(input);
+      
+      // Verificar si tiene typeahead inicializado
+      if ($input.data('typeahead')) {
+        // Focus en el input
+        $input.focus();
+        
+        // Establecer el valor y disparar evento input para abrir el dropdown
+        $input.val(value).trigger('input');
+        
+        // Esperar un momento para que se abra el dropdown
+        setTimeout(() => {
+          // Simular la selección desde el dropdown
+          $input.trigger('typeahead:select', [value]);
+          
+          // Disparar blur para cerrar
+          $input.blur();
+        }, 100);
+        
+        // Actualizar también el div estático
+        const formGroup = input.closest('.form-group');
+        if (formGroup) {
+          const staticDiv = formGroup.querySelector('.form-control-static');
+          if (staticDiv) {
+            staticDiv.textContent = value;
+          }
+        }
+        
+        return true;
+      }
+    }
+    
+    // Método 2: Simular interacción del usuario
+    // Focus en el input
+    input.focus();
+    
+    // Establecer el valor y disparar eventos de teclado
+    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    nativeInputValueSetter.call(input, value);
+    
+    // Simular eventos de escritura
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: value.charAt(value.length - 1), bubbles: true }));
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keyup', { key: value.charAt(value.length - 1), bubbles: true }));
+    
+    // Esperar a que se abra el dropdown y simular Enter
+    setTimeout(() => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }, 150);
+    
+  } catch (error) {
+    // Fallback al método antiguo
+    input.value = value;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }
   
-  // Actualizar el div estático si existe
+  // Actualizar el div estático
   const formGroup = input.closest('.form-group');
   if (formGroup) {
     const staticDiv = formGroup.querySelector('.form-control-static');
