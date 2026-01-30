@@ -28,6 +28,7 @@ const previewImage1 = document.getElementById('previewImage1');
 const previewImage2 = document.getElementById('previewImage2');
 const clearDniImages = document.getElementById('clearDniImages');
 const selectFolderBtn = document.getElementById('selectFolderBtn');
+const testFolderBtn = document.getElementById('testFolderBtn');
 const scanFolderPath = document.getElementById('scanFolderPath');
 const folderStatus = document.getElementById('folderStatus');
 const scanBtn = document.getElementById('scanBtn');
@@ -73,9 +74,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (stored.openaiApiKey) {
     apiKeyInput.value = stored.openaiApiKey;
   }
-  if (stored.scanFolderName) {
-    scanFolderPath.textContent = stored.scanFolderName;
-  }
+  
+  // Inicializar el folder handle y mostrar el nombre
+  await initializeFolderHandle();
+  
   // Por defecto está desactivado
   uploadPhotoCheckbox.checked = stored.uploadPhoto === true;
   
@@ -1339,31 +1341,56 @@ const STORE_NAME = 'folderHandles';
 
 function openDatabase() {
   return new Promise((resolve, reject) => {
+    console.log('[DEBUG] Abriendo IndexedDB...');
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => {
+      console.error('[ERROR] Error al abrir IndexedDB:', request.error);
+      reject(request.error);
+    };
+    
+    request.onsuccess = () => {
+      console.log('[DEBUG] IndexedDB abierta correctamente');
+      resolve(request.result);
+    };
     
     request.onupgradeneeded = (event) => {
+      console.log('[DEBUG] Creando object store...');
       const db = event.target.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME);
+        console.log('[DEBUG] Object store creado');
       }
     };
   });
 }
 
 async function saveFolderHandle(handle) {
+  console.log('[DEBUG] Guardando folder handle:', handle.name);
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE_NAME, 'readwrite');
     const store = transaction.objectStore(STORE_NAME);
     const request = store.put(handle, 'scanFolder');
     
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve();
+    request.onerror = () => {
+      console.error('[ERROR] Error al guardar en IndexedDB:', request.error);
+      reject(request.error);
+    };
     
-    transaction.oncomplete = () => db.close();
+    request.onsuccess = () => {
+      console.log('[DEBUG] Handle guardado correctamente en IndexedDB');
+      resolve();
+    };
+    
+    transaction.oncomplete = () => {
+      db.close();
+      console.log('[DEBUG] Transacción completada');
+    };
+    
+    transaction.onerror = () => {
+      console.error('[ERROR] Error en transacción:', transaction.error);
+    };
   });
 }
 
@@ -1407,37 +1434,145 @@ let scanFolderHandle = null;
 
 // Cargar el handle guardado al iniciar
 async function initializeFolderHandle() {
-  const savedHandle = await loadFolderHandle();
-  if (savedHandle) {
-    scanFolderHandle = savedHandle;
-    scanFolderPath.textContent = savedHandle.name;
+  console.log('[DEBUG] Inicializando folder handle...');
+  try {
+    const savedHandle = await loadFolderHandle();
+    console.log('[DEBUG] Handle cargado:', savedHandle ? savedHandle.name : 'null');
+    
+    if (savedHandle) {
+      scanFolderHandle = savedHandle;
+      scanFolderPath.textContent = savedHandle.name;
+      
+      // Verificar si todavía tenemos permiso
+      try {
+        const hasPermission = await verifyPermission(savedHandle);
+        if (!hasPermission) {
+          scanFolderPath.textContent = `${savedHandle.name} (permiso requerido)`;
+          console.log('[DEBUG] Permiso requerido para:', savedHandle.name);
+        } else {
+          console.log('[DEBUG] Permiso OK para:', savedHandle.name);
+        }
+      } catch (error) {
+        console.error('[ERROR] Error al verificar permisos:', error);
+        scanFolderPath.textContent = 'No configurada';
+        scanFolderHandle = null;
+      }
+    } else {
+      console.log('[DEBUG] No hay carpeta guardada');
+    }
+  } catch (error) {
+    console.error('[ERROR] Error al cargar folder handle:', error);
+    scanFolderPath.textContent = 'No configurada';
   }
 }
 
-// Inicializar al cargar
-initializeFolderHandle();
-
 // Seleccionar carpeta de escaneos
+console.log('[DEBUG] Registrando listener para selectFolderBtn:', selectFolderBtn ? 'OK' : 'NULL');
 selectFolderBtn.addEventListener('click', async () => {
+  console.log('[DEBUG] ===== BOTÓN SELECCIONAR CARPETA CLICKEADO =====');
+  
+  // Verificar que la API esté disponible
+  if (!window.showDirectoryPicker) {
+    console.error('[ERROR] showDirectoryPicker NO disponible en este navegador');
+    showFolderStatus('❌ Tu navegador no soporta esta función', 'error');
+    return;
+  }
+  
+  console.log('[DEBUG] showDirectoryPicker disponible, mostrando diálogo...');
+  
+  // SOLUCIÓN: Abrir options.html en una nueva pestaña para evitar que el popup se cierre
+  // y cancele el diálogo
+  console.log('[DEBUG] Abriendo página de configuración en nueva pestaña...');
+  chrome.tabs.create({ url: chrome.runtime.getURL('options.html') });
+  
+  /* CÓDIGO ORIGINAL COMENTADO - No funciona en popup porque se cierra
   try {
     // Pedir permiso para acceder a una carpeta
     scanFolderHandle = await window.showDirectoryPicker({
       mode: 'read'
     });
     
+    console.log('[DEBUG] Carpeta seleccionada:', scanFolderHandle.name);
+    
     // Guardar el handle en IndexedDB
-    await saveFolderHandle(scanFolderHandle);
+    try {
+      await saveFolderHandle(scanFolderHandle);
+      console.log('[DEBUG] Handle guardado en IndexedDB');
+    } catch (dbError) {
+      console.error('[ERROR] No se pudo guardar en IndexedDB:', dbError);
+      showFolderStatus(`Error al guardar: ${dbError.message}`, 'error');
+      return;
+    }
     
     // Guardar el nombre en chrome.storage para mostrarlo
     const folderName = scanFolderHandle.name;
     scanFolderPath.textContent = folderName;
     await chrome.storage.local.set({ scanFolderName: folderName });
     
+    console.log('[DEBUG] Carpeta configurada correctamente:', folderName);
     showFolderStatus('Carpeta configurada ✓', 'success');
   } catch (error) {
+    console.error('[ERROR] Error capturado:', error);
+    console.error('[ERROR] Error name:', error.name);
+    console.error('[ERROR] Error message:', error.message);
+    
     if (error.name !== 'AbortError') {
-      showFolderStatus('Error al seleccionar carpeta', 'error');
+      showFolderStatus(`Error: ${error.message}`, 'error');
+    } else {
+      console.log('[DEBUG] Usuario canceló la selección');
     }
+  }
+  
+  console.log('[DEBUG] ===== FIN PROCESO SELECCIÓN =====');
+  */
+});
+
+// Botón de prueba para diagnosticar problemas con la carpeta
+testFolderBtn.addEventListener('click', async () => {
+  console.log('=== DIAGNÓSTICO DE CARPETA ===');
+  
+  try {
+    // 1. Verificar si hay handle en memoria
+    console.log('1. Handle en memoria:', scanFolderHandle ? scanFolderHandle.name : 'null');
+    
+    // 2. Intentar cargar de IndexedDB
+    const loadedHandle = await loadFolderHandle();
+    console.log('2. Handle en IndexedDB:', loadedHandle ? loadedHandle.name : 'null');
+    
+    // 3. Verificar chrome.storage
+    const stored = await chrome.storage.local.get(['scanFolderName']);
+    console.log('3. Nombre en chrome.storage:', stored.scanFolderName || 'null');
+    
+    // 4. Si hay handle, verificar permiso
+    if (loadedHandle) {
+      try {
+        const hasPermission = await verifyPermission(loadedHandle);
+        console.log('4. Tiene permiso:', hasPermission);
+        
+        if (hasPermission) {
+          // Intentar listar archivos
+          let fileCount = 0;
+          for await (const entry of loadedHandle.values()) {
+            fileCount++;
+            if (fileCount > 5) break; // Solo contar primeros 5
+          }
+          console.log('5. Archivos encontrados:', fileCount > 5 ? '5+' : fileCount);
+          showFolderStatus(`✓ Carpeta OK: ${loadedHandle.name} (${fileCount > 5 ? '5+' : fileCount} archivos)`, 'success');
+        } else {
+          showFolderStatus('⚠️ Carpeta sin permisos. Vuelve a seleccionarla.', 'error');
+        }
+      } catch (permError) {
+        console.error('Error al verificar permisos:', permError);
+        showFolderStatus('❌ Error al acceder a la carpeta', 'error');
+      }
+    } else {
+      showFolderStatus('❌ No hay carpeta guardada', 'error');
+    }
+    
+    console.log('=== FIN DIAGNÓSTICO ===');
+  } catch (error) {
+    console.error('Error en diagnóstico:', error);
+    showFolderStatus(`Error: ${error.message}`, 'error');
   }
 });
 
@@ -1461,7 +1596,6 @@ loadScanBtn.addEventListener('click', async () => {
     // Verificar si hay una carpeta configurada
     if (!scanFolderHandle) {
       showStatusMessage('Configura la carpeta de escaneos en ⚙️', 'error');
-      optionsPanel.classList.remove('hidden');
       return;
     }
     
@@ -1469,7 +1603,6 @@ loadScanBtn.addEventListener('click', async () => {
     const hasPermission = await verifyPermission(scanFolderHandle);
     if (!hasPermission) {
       showStatusMessage('Permiso denegado. Configura la carpeta en ⚙️', 'error');
-      optionsPanel.classList.remove('hidden');
       return;
     }
     
@@ -1529,7 +1662,6 @@ loadDniBtn.addEventListener('click', async () => {
     // Verificar si hay una carpeta configurada
     if (!scanFolderHandle) {
       showStatusMessage('Configura la carpeta de escaneos en ⚙️', 'error');
-      optionsPanel.classList.remove('hidden');
       return;
     }
     
@@ -1537,7 +1669,6 @@ loadDniBtn.addEventListener('click', async () => {
     const hasPermission = await verifyPermission(scanFolderHandle);
     if (!hasPermission) {
       showStatusMessage('Permiso denegado. Configura la carpeta en ⚙️', 'error');
-      optionsPanel.classList.remove('hidden');
       return;
     }
     
