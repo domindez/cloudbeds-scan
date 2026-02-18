@@ -25,8 +25,9 @@ const CONSENT_DOCUMENT_I18N = {
     authorizationTitle: 'Autorización',
     authorizationText: 'El firmante autoriza al hotel a realizar la mencionada preautorización y, en caso de detectarse daños en mobiliario, instalaciones o deudas pendientes al finalizar la estancia, autoriza expresamente el cobro de los importes correspondientes contra dicha garantía.',
     smokingCharge: 'Cargo por fumar en la habitación: 50€',
-    lateCheckoutCharge: 'Cargo por checkout tarde: 20€',
+    lateCheckoutCharge: 'Checkout tarde: 20€ (el cobro de esta penalización no da derecho a estar más tiempo en la habitación. Más de 1 hora el cobro será de 50€)',
     damageCharge: 'Cargo por daños en la habitación, según la cuantía de los daños',
+    futureBookingPolicy: 'Infringir las normas del hotel implica la no admisión en futuras reservas.',
     consentDateLabel: 'Fecha del consentimiento',
     placeLabel: 'Lugar',
     placeValue: 'Torremolinos',
@@ -55,8 +56,9 @@ const CONSENT_DOCUMENT_I18N = {
     authorizationTitle: 'Authorization',
     authorizationText: 'The signer authorizes the hotel to perform the above-mentioned pre-authorization and, if damages, pending debts, or unpaid charges are detected at the end of the stay, expressly authorizes the corresponding amounts to be charged against this guarantee.',
     smokingCharge: 'Smoking charge in the room: €50',
-    lateCheckoutCharge: 'Late check-out charge: €20',
+    lateCheckoutCharge: 'Late check-out: €20 (this penalty does not grant extra time in the room. More than 1 hour will be charged at €50)',
     damageCharge: 'Damage charge in the room, according to the extent of damages',
+    futureBookingPolicy: 'Violating hotel rules results in refusal of future bookings.',
     consentDateLabel: 'Consent date',
     placeLabel: 'Place',
     placeValue: 'Torremolinos',
@@ -85,8 +87,9 @@ const CONSENT_DOCUMENT_I18N = {
     authorizationTitle: 'Autorisation',
     authorizationText: 'Le signataire autorise l’hôtel à effectuer la préautorisation mentionnée et, en cas de dommages, de dettes en suspens ou de frais impayés à la fin du séjour, autorise expressément le débit des montants correspondants sur cette garantie.',
     smokingCharge: 'Frais pour avoir fumé dans la chambre : 50€',
-    lateCheckoutCharge: 'Frais de départ tardif : 20€',
+    lateCheckoutCharge: 'Départ tardif : 20€ (cette pénalité ne donne pas droit à plus de temps dans la chambre. Au-delà de 1 heure, le montant sera de 50€)',
     damageCharge: 'Frais pour dommages dans la chambre, selon l’importance des dommages',
+    futureBookingPolicy: 'Le non-respect du règlement de l’hôtel entraîne un refus de futures réservations.',
     consentDateLabel: 'Date du consentement',
     placeLabel: 'Lieu',
     placeValue: 'Torremolinos',
@@ -115,8 +118,9 @@ const CONSENT_DOCUMENT_I18N = {
     authorizationTitle: 'Autorisierung',
     authorizationText: 'Der Unterzeichner ermächtigt das Hotel zur oben genannten Preautorisierung und ermächtigt ausdrücklich die Belastung entsprechender Beträge aus dieser Garantie, falls am Ende des Aufenthalts Schäden, offene Forderungen oder unbezahlte Leistungen festgestellt werden.',
     smokingCharge: 'Gebühr für Rauchen im Zimmer: 50€',
-    lateCheckoutCharge: 'Gebühr für verspäteten Check-out: 20€',
+    lateCheckoutCharge: 'Verspäteter Check-out: 20€ (diese Strafgebühr berechtigt nicht zu längerer Zimmernutzung. Bei mehr als 1 Stunde beträgt die Gebühr 50€)',
     damageCharge: 'Gebühr für Schäden im Zimmer, je nach Schadenshöhe',
+    futureBookingPolicy: 'Ein Verstoß gegen die Hotelregeln führt zur Ablehnung künftiger Buchungen.',
     consentDateLabel: 'Datum der Einwilligung',
     placeLabel: 'Ort',
     placeValue: 'Torremolinos',
@@ -2311,6 +2315,7 @@ function buildCardConsentWordHtml(data) {
     <li>${escapeHtml(i18n.smokingCharge)}</li>
     <li>${escapeHtml(i18n.lateCheckoutCharge)}</li>
     <li>${escapeHtml(i18n.damageCharge)}</li>
+    <li>${escapeHtml(i18n.futureBookingPolicy)}</li>
   </ul>
 
   <div class="signature-block">
