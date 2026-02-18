@@ -3,6 +3,129 @@
 const CARD_SIGNATURE_BUTTON_ID = 'cloudbeds-card-signature-btn';
 const CARD_SIGNATURE_BUTTON_CLASS = 'cloudbeds-card-signature-btn';
 
+const CONSENT_DOCUMENT_I18N = {
+  es: {
+    documentTitle: 'Consentimiento de garantía',
+    title: 'Consentimiento de depósito de garantía',
+    subtitle: 'Documento de autorización para preautorización de tarjeta',
+    guestLabel: 'Nombre del huésped principal',
+    roomLabel: 'Número de habitación',
+    checkOutLabel: 'Fecha de salida',
+    cardHolderLabel: 'Titular de la tarjeta',
+    last4Label: 'Últimos 4 dígitos',
+    amountLabel: 'Importe de preautorización',
+    conditionsTitle: 'Condiciones',
+    conditionsIntro: 'Se requiere una garantía mediante tarjeta de crédito o débito para cubrir posibles desperfectos o incumplimiento de las normas del establecimiento tales como fumar en la habitación o hacer el check-out tarde.',
+    chargeNatureLabel: 'Naturaleza del cargo',
+    chargeNatureText: 'Esta operación no es un cobro, sino una retención temporal de saldo que garantiza la disponibilidad de fondos en caso de ser necesarios.',
+    releaseLabel: 'Liberación',
+    releaseText: 'El hotel ordenará la liberación del bloqueo tras el check-out y la revisión de la habitación.',
+    bankTermsLabel: 'Plazos bancarios',
+    bankTermsText: 'La desaparición del bloqueo en el extracto depende de la entidad financiera y puede demorar entre 2 y 10 días hábiles.',
+    authorizationTitle: 'Autorización',
+    authorizationText: 'El firmante autoriza al hotel a realizar la mencionada preautorización y, en caso de detectarse daños en mobiliario, instalaciones o deudas pendientes al finalizar la estancia, autoriza expresamente el cobro de los importes correspondientes contra dicha garantía.',
+    smokingCharge: 'Cargo por fumar en la habitación: 50€',
+    lateCheckoutCharge: 'Cargo por checkout tarde: 20€',
+    damageCharge: 'Cargo por daños en la habitación, según la cuantía de los daños',
+    consentDateLabel: 'Fecha del consentimiento',
+    placeLabel: 'Lugar',
+    placeValue: 'Torremolinos',
+    signatureLabel: 'Firma del huésped',
+    currency: '€',
+    filePrefix: 'consentimiento-tarjeta'
+  },
+  en: {
+    documentTitle: 'Security Deposit Consent',
+    title: 'Security Deposit Consent',
+    subtitle: 'Card pre-authorization consent document',
+    guestLabel: 'Main guest name',
+    roomLabel: 'Room number',
+    checkOutLabel: 'Check-out date',
+    cardHolderLabel: 'Cardholder name',
+    last4Label: 'Last 4 digits',
+    amountLabel: 'Pre-authorization amount',
+    conditionsTitle: 'Conditions',
+    conditionsIntro: 'A credit or debit card guarantee is required to cover possible damages or non-compliance with property rules, such as smoking in the room or late check-out.',
+    chargeNatureLabel: 'Charge nature',
+    chargeNatureText: 'This operation is not a charge, but a temporary hold to ensure funds are available if needed.',
+    releaseLabel: 'Release',
+    releaseText: 'The hotel will request release of the hold after check-out and room inspection.',
+    bankTermsLabel: 'Bank processing times',
+    bankTermsText: 'The hold removal timing depends on the financial institution and may take between 2 and 10 business days.',
+    authorizationTitle: 'Authorization',
+    authorizationText: 'The signer authorizes the hotel to perform the above-mentioned pre-authorization and, if damages, pending debts, or unpaid charges are detected at the end of the stay, expressly authorizes the corresponding amounts to be charged against this guarantee.',
+    smokingCharge: 'Smoking charge in the room: €50',
+    lateCheckoutCharge: 'Late check-out charge: €20',
+    damageCharge: 'Damage charge in the room, according to the extent of damages',
+    consentDateLabel: 'Consent date',
+    placeLabel: 'Place',
+    placeValue: 'Torremolinos',
+    signatureLabel: 'Guest signature',
+    currency: '€',
+    filePrefix: 'card-consent'
+  },
+  fr: {
+    documentTitle: 'Consentement de garantie',
+    title: 'Consentement de dépôt de garantie',
+    subtitle: 'Document d’autorisation de préautorisation de carte',
+    guestLabel: 'Nom du client principal',
+    roomLabel: 'Numéro de chambre',
+    checkOutLabel: 'Date de départ',
+    cardHolderLabel: 'Titulaire de la carte',
+    last4Label: '4 derniers chiffres',
+    amountLabel: 'Montant de la préautorisation',
+    conditionsTitle: 'Conditions',
+    conditionsIntro: 'Une garantie par carte de crédit ou de débit est requise pour couvrir d’éventuels dommages ou le non-respect des règles de l’établissement, comme fumer dans la chambre ou un départ tardif.',
+    chargeNatureLabel: 'Nature de l’opération',
+    chargeNatureText: 'Cette opération n’est pas un débit, mais une retenue temporaire de fonds afin de garantir leur disponibilité si nécessaire.',
+    releaseLabel: 'Mainlevée',
+    releaseText: 'L’hôtel demandera la levée du blocage après le départ et l’inspection de la chambre.',
+    bankTermsLabel: 'Délais bancaires',
+    bankTermsText: 'La disparition du blocage sur le relevé dépend de l’établissement bancaire et peut prendre entre 2 et 10 jours ouvrables.',
+    authorizationTitle: 'Autorisation',
+    authorizationText: 'Le signataire autorise l’hôtel à effectuer la préautorisation mentionnée et, en cas de dommages, de dettes en suspens ou de frais impayés à la fin du séjour, autorise expressément le débit des montants correspondants sur cette garantie.',
+    smokingCharge: 'Frais pour avoir fumé dans la chambre : 50€',
+    lateCheckoutCharge: 'Frais de départ tardif : 20€',
+    damageCharge: 'Frais pour dommages dans la chambre, selon l’importance des dommages',
+    consentDateLabel: 'Date du consentement',
+    placeLabel: 'Lieu',
+    placeValue: 'Torremolinos',
+    signatureLabel: 'Signature du client',
+    currency: '€',
+    filePrefix: 'consentement-carte'
+  },
+  de: {
+    documentTitle: 'Einverständniserklärung Kaution',
+    title: 'Einverständniserklärung zur Kautionshinterlegung',
+    subtitle: 'Dokument zur Autorisierung einer Karten-Preautorisierung',
+    guestLabel: 'Name des Hauptgastes',
+    roomLabel: 'Zimmernummer',
+    checkOutLabel: 'Abreisedatum',
+    cardHolderLabel: 'Karteninhaber',
+    last4Label: 'Letzte 4 Ziffern',
+    amountLabel: 'Preautorisierungsbetrag',
+    conditionsTitle: 'Bedingungen',
+    conditionsIntro: 'Eine Garantie per Kredit- oder Debitkarte ist erforderlich, um mögliche Schäden oder Verstöße gegen die Hausregeln abzudecken, z. B. Rauchen im Zimmer oder verspäteter Check-out.',
+    chargeNatureLabel: 'Art der Belastung',
+    chargeNatureText: 'Bei diesem Vorgang handelt es sich nicht um eine Abbuchung, sondern um eine vorübergehende Reservierung des Betrags, um bei Bedarf die Verfügbarkeit von Mitteln sicherzustellen.',
+    releaseLabel: 'Freigabe',
+    releaseText: 'Das Hotel veranlasst die Freigabe der Reservierung nach dem Check-out und der Zimmerkontrolle.',
+    bankTermsLabel: 'Banklaufzeiten',
+    bankTermsText: 'Wann die Reservierung auf dem Kontoauszug verschwindet, hängt vom Finanzinstitut ab und kann zwischen 2 und 10 Werktagen dauern.',
+    authorizationTitle: 'Autorisierung',
+    authorizationText: 'Der Unterzeichner ermächtigt das Hotel zur oben genannten Preautorisierung und ermächtigt ausdrücklich die Belastung entsprechender Beträge aus dieser Garantie, falls am Ende des Aufenthalts Schäden, offene Forderungen oder unbezahlte Leistungen festgestellt werden.',
+    smokingCharge: 'Gebühr für Rauchen im Zimmer: 50€',
+    lateCheckoutCharge: 'Gebühr für verspäteten Check-out: 20€',
+    damageCharge: 'Gebühr für Schäden im Zimmer, je nach Schadenshöhe',
+    consentDateLabel: 'Datum der Einwilligung',
+    placeLabel: 'Ort',
+    placeValue: 'Torremolinos',
+    signatureLabel: 'Unterschrift des Gastes',
+    currency: '€',
+    filePrefix: 'karten-einverstandnis'
+  }
+};
+
 let creditCardSignatureObserver = null;
 let creditCardSignatureRefreshTimer = null;
 
@@ -1843,6 +1966,7 @@ async function collectCardSignatureData() {
     cardHolder,
     cardLast4,
     pendingAmount: '100',
+    documentLanguage: 'es',
     issueDay: String(today.getDate()).padStart(2, '0'),
     issueMonthName: getSpanishMonthName(today.getMonth()),
     issueYear: String(today.getFullYear())
@@ -1933,6 +2057,17 @@ function openConsentDetailsDialog(initialData) {
       placeholder: '100'
     });
 
+    const languageSelect = buildConsentSelect({
+      label: 'Idioma del documento *',
+      value: getSupportedConsentLanguage(initialData.documentLanguage),
+      options: [
+        { value: 'es', text: 'Español' },
+        { value: 'en', text: 'Inglés' },
+        { value: 'fr', text: 'Francés' },
+        { value: 'de', text: 'Alemán' }
+      ]
+    });
+
     const actions = document.createElement('div');
     actions.className = 'cloudbeds-consent-actions';
 
@@ -1969,6 +2104,7 @@ function openConsentDetailsDialog(initialData) {
       const guestName = (nameInput.input.value || '').trim();
       const amountRaw = (amountInput.input.value || '').replace(',', '.').trim();
       const amountNumber = Number(amountRaw);
+      const documentLanguage = getSupportedConsentLanguage(languageSelect.select.value);
 
       if (!guestName || !amountRaw || !Number.isFinite(amountNumber) || amountNumber <= 0) {
         error.textContent = 'Nombre y cantidad son obligatorios. La cantidad debe ser mayor que 0.';
@@ -1979,7 +2115,8 @@ function openConsentDetailsDialog(initialData) {
       closeDialog({
         ...initialData,
         guestName,
-        pendingAmount: amountRaw
+        pendingAmount: amountRaw,
+        documentLanguage
       });
     });
 
@@ -1988,6 +2125,7 @@ function openConsentDetailsDialog(initialData) {
 
     form.appendChild(nameInput.wrapper);
     form.appendChild(amountInput.wrapper);
+    form.appendChild(languageSelect.wrapper);
     form.appendChild(error);
     form.appendChild(actions);
 
@@ -2028,10 +2166,80 @@ function buildConsentInput({ label, type, value, required, min, step, placeholde
   return { wrapper, input };
 }
 
+function buildConsentSelect({ label, value, options }) {
+  const wrapper = document.createElement('label');
+  wrapper.className = 'cloudbeds-consent-field';
+
+  const labelEl = document.createElement('span');
+  labelEl.className = 'cloudbeds-consent-label';
+  labelEl.textContent = label;
+
+  const select = document.createElement('select');
+  select.className = 'cloudbeds-consent-input';
+
+  options.forEach(optionData => {
+    const option = document.createElement('option');
+    option.value = optionData.value;
+    option.textContent = optionData.text;
+    if (optionData.value === value) {
+      option.selected = true;
+    }
+    select.appendChild(option);
+  });
+
+  wrapper.appendChild(labelEl);
+  wrapper.appendChild(select);
+
+  return { wrapper, select };
+}
+
+function getSupportedConsentLanguage(language) {
+  if (language && CONSENT_DOCUMENT_I18N[language]) {
+    return language;
+  }
+  return 'es';
+}
+
+function getConsentDocumentTexts(language) {
+  return CONSENT_DOCUMENT_I18N[getSupportedConsentLanguage(language)];
+}
+
+function getLocalizedMonthName(monthIndex, language) {
+  const monthsByLanguage = {
+    es: ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'],
+    en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+    fr: ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'],
+    de: ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
+  };
+
+  const selectedLanguage = getSupportedConsentLanguage(language);
+  return monthsByLanguage[selectedLanguage]?.[monthIndex] || monthsByLanguage.es[monthIndex] || '';
+}
+
+function buildLocalizedConsentDateText(date, language) {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = getLocalizedMonthName(date.getMonth(), language);
+  const year = date.getFullYear();
+
+  switch (getSupportedConsentLanguage(language)) {
+    case 'en':
+      return `${month} ${day}, ${year}`;
+    case 'fr':
+      return `${day} ${month} ${year}`;
+    case 'de':
+      return `${day}. ${month} ${year}`;
+    case 'es':
+    default:
+      return `${day} de ${month} de ${year}`;
+  }
+}
+
 function buildCardConsentWordHtml(data) {
+  const language = getSupportedConsentLanguage(data.documentLanguage);
+  const i18n = getConsentDocumentTexts(language);
   const checkOutDateParts = splitDateParts(data.checkOutDate);
   const today = new Date();
-  const fullDateText = `${String(today.getDate()).padStart(2, '0')} de ${getSpanishMonthName(today.getMonth())} de ${today.getFullYear()}`;
+  const fullDateText = buildLocalizedConsentDateText(today, language);
   const safeGuestName = escapeHtml(fillOrPlaceholder(data.guestName, 45));
   const safeRoomNumber = escapeHtml(fillOrPlaceholder(data.roomNumber, 8));
   const safeAmount = escapeHtml(fillOrPlaceholder(data.pendingAmount, 6));
@@ -2044,7 +2252,7 @@ function buildCardConsentWordHtml(data) {
 <head>
   <meta charset="utf-8" />
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  <title>Consentimiento de garantía</title>
+  <title>${escapeHtml(i18n.documentTitle)}</title>
   <style>
     @page { margin: 2cm; }
     body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; color: #000; line-height: 1.45; }
@@ -2060,60 +2268,69 @@ function buildCardConsentWordHtml(data) {
     .table td { border: 1px solid #000; padding: 7px 8px; vertical-align: top; }
     .muted { color: #000; }
     .legal { border-left: 0; padding-left: 0; }
+    .charges-list { margin: 0 0 10px 18px; padding: 0; }
+    .charges-list li { margin-bottom: 4px; }
     .signature-block { margin-top: 20px; }
     .signature-line { margin-top: 36px; border-top: 1px solid #000; width: 280px; padding-top: 6px; }
   </style>
 </head>
 <body>
   <div class="header">
-    <p class="title">Consentimiento de depósito de garantía</p>
-    <p class="subtitle">Documento de autorización para preautorización de tarjeta</p>
+    <p class="title">${escapeHtml(i18n.title)}</p>
+    <p class="subtitle">${escapeHtml(i18n.subtitle)}</p>
   </div>
 
   <table class="table">
     <tr>
-      <td colspan="2"><span class="label">Nombre del huésped principal</span><br>${safeGuestName}</td>
+      <td colspan="2"><span class="label">${escapeHtml(i18n.guestLabel)}</span><br>${safeGuestName}</td>
     </tr>
     <tr>
-      <td><span class="label">Número de habitación</span><br>${safeRoomNumber}</td>
-      <td><span class="label">Fecha de salida</span><br>${checkOutDateParts.day} / ${checkOutDateParts.month} / ${checkOutDateParts.year}</td>
+      <td><span class="label">${escapeHtml(i18n.roomLabel)}</span><br>${safeRoomNumber}</td>
+      <td><span class="label">${escapeHtml(i18n.checkOutLabel)}</span><br>${checkOutDateParts.day} / ${checkOutDateParts.month} / ${checkOutDateParts.year}</td>
     </tr>
     <tr>
-      <td><span class="label">Titular de la tarjeta</span><br>${safeCardHolder}</td>
-      <td><span class="label">Últimos 4 dígitos</span><br>**** **** **** ${safeLast4}</td>
+      <td><span class="label">${escapeHtml(i18n.cardHolderLabel)}</span><br>${safeCardHolder}</td>
+      <td><span class="label">${escapeHtml(i18n.last4Label)}</span><br>**** **** **** ${safeLast4}</td>
     </tr>
     <tr>
-      <td colspan="2"><span class="label">Importe de preautorización</span><br>${safeAmount} €</td>
+      <td colspan="2"><span class="label">${escapeHtml(i18n.amountLabel)}</span><br>${safeAmount} ${escapeHtml(i18n.currency)}</td>
     </tr>
   </table>
 
-  <h2>Condiciones</h2>
+  <h2>${escapeHtml(i18n.conditionsTitle)}</h2>
   <div>
-    <p>Se requiere una garantía mediante tarjeta de crédito o débito para cubrir posibles desperfectos o incumplimiento de las normas del establecimiento.</p>
-    <p><span class="label">Naturaleza del cargo:</span> Esta operación no es un cobro, sino una retención temporal de saldo que garantiza la disponibilidad de fondos en caso de ser necesarios.</p>
-    <p><span class="label">Liberación:</span> El hotel ordenará la liberación del bloqueo tras el check-out y la revisión de la habitación.</p>
-    <p><span class="label">Plazos bancarios:</span> La desaparición del bloqueo en el extracto depende de la entidad financiera y puede demorar entre 2 y 10 días hábiles.</p>
+    <p>${escapeHtml(i18n.conditionsIntro)}</p>
+    <p><span class="label">${escapeHtml(i18n.chargeNatureLabel)}:</span> ${escapeHtml(i18n.chargeNatureText)}</p>
+    <p><span class="label">${escapeHtml(i18n.releaseLabel)}:</span> ${escapeHtml(i18n.releaseText)}</p>
+    <p><span class="label">${escapeHtml(i18n.bankTermsLabel)}:</span> ${escapeHtml(i18n.bankTermsText)}</p>
   </div>
 
-  <h2>Autorización</h2>
-  <p>El firmante autoriza al hotel a realizar la mencionada preautorización y, en caso de detectarse daños en mobiliario, instalaciones o deudas pendientes al finalizar la estancia, autoriza expresamente el cobro de los importes correspondientes contra dicha garantía.</p>
+  <h2>${escapeHtml(i18n.authorizationTitle)}</h2>
+  <p>${escapeHtml(i18n.authorizationText)}</p>
+  <ul class="charges-list">
+    <li>${escapeHtml(i18n.smokingCharge)}</li>
+    <li>${escapeHtml(i18n.lateCheckoutCharge)}</li>
+    <li>${escapeHtml(i18n.damageCharge)}</li>
+  </ul>
 
   <div class="signature-block">
-    <p><span class="label">Fecha del consentimiento:</span> ${safeFullDateText}</p>
-    <p class="muted">Lugar: Torremolinos</p>
+    <p><span class="label">${escapeHtml(i18n.consentDateLabel)}:</span> ${safeFullDateText}</p>
+    <p class="muted">${escapeHtml(i18n.placeLabel)}: ${escapeHtml(i18n.placeValue)}</p>
     <br>
     <br>
-    <div class="signature-line">Firma del huésped</div>
+    <div class="signature-line">${escapeHtml(i18n.signatureLabel)}</div>
   </div>
 </body>
 </html>`;
 }
 
 function downloadCardSignatureDocument(content, data) {
+  const language = getSupportedConsentLanguage(data.documentLanguage);
+  const i18n = getConsentDocumentTexts(language);
   const safeName = sanitizeFileName(data.guestName || 'huesped');
   const today = new Date();
   const dateSegment = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  const fileName = `consentimiento-tarjeta-${safeName}-${dateSegment}.doc`;
+  const fileName = `${i18n.filePrefix}-${safeName}-${dateSegment}.doc`;
 
   const blob = new Blob([content], {
     type: 'application/msword;charset=utf-8'
