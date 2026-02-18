@@ -1798,14 +1798,12 @@ function findCardActionContainer() {
 }
 
 function hasActiveCreditCard() {
-  const cardItems = document.querySelectorAll('ul[data-hook="credit-cards-list"] li');
-  if (!cardItems.length) {
-    return false;
-  }
+  const hasCardInList = Boolean(
+    document.querySelector('ul[data-hook="credit-cards-list"] li') ||
+    document.querySelector('#credit-cards-list-new li')
+  );
 
-  const cardNumber = getElementText('[data-hook="credit-card-number"]');
-  const digits = (cardNumber.match(/\d/g) || []).join('');
-  return digits.length >= 4;
+  return hasCardInList;
 }
 
 async function handleGenerateCardSignatureDocument() {
