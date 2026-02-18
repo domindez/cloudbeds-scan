@@ -35,3 +35,106 @@
 		box-shadow: none;
 	}
 }
+
+/* Botón añadido por la extensión para consentimiento de tarjeta */
+.cloudbeds-card-signature-btn {
+	margin-left: 8px;
+	font-weight: 600;
+	border: 1px solid #6d28d9 !important;
+	background: #7c3aed !important;
+	color: #ffffff !important;
+	letter-spacing: 0.2px;
+	white-space: nowrap;
+	box-shadow: 0 1px 2px rgba(109, 40, 217, 0.25);
+}
+
+.cloudbeds-card-signature-btn:hover,
+.cloudbeds-card-signature-btn:focus {
+	background: #6d28d9 !important;
+	border-color: #5b21b6 !important;
+	color: #ffffff !important;
+	transform: translateY(-1px);
+}
+
+/* Modal de confirmación para generar consentimiento */
+.cloudbeds-consent-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.35);
+	z-index: 1000000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 16px;
+}
+
+.cloudbeds-consent-dialog {
+	width: 100%;
+	max-width: 460px;
+	background: #fff;
+	border-radius: 10px;
+	padding: 16px;
+	box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.cloudbeds-consent-title {
+	margin: 0 0 6px;
+	font-size: 16px;
+	font-weight: 700;
+	color: #1f2937;
+}
+
+.cloudbeds-consent-subtitle {
+	margin: 0 0 12px;
+	font-size: 12px;
+	color: #4b5563;
+}
+
+.cloudbeds-consent-form {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.cloudbeds-consent-field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.cloudbeds-consent-label {
+	font-size: 12px;
+	font-weight: 600;
+	color: #374151;
+}
+
+.cloudbeds-consent-input {
+	height: 34px;
+	padding: 6px 10px;
+	border: 1px solid #cfd8e3;
+	border-radius: 6px;
+	font-size: 13px;
+	outline: none;
+}
+
+.cloudbeds-consent-input:focus {
+	border-color: #2563eb;
+	box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.cloudbeds-consent-error {
+	font-size: 12px;
+	color: #b91c1c;
+	background: #fee2e2;
+	border: 1px solid #fecaca;
+	border-radius: 6px;
+	padding: 8px 10px;
+}
+
+.cloudbeds-consent-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 2px;
+}

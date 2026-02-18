@@ -1,5 +1,11 @@
 // Content script para interactuar con la página de Cloudbeds
 
+const CARD_SIGNATURE_BUTTON_ID = 'cloudbeds-card-signature-btn';
+const CARD_SIGNATURE_BUTTON_CLASS = 'cloudbeds-card-signature-btn';
+
+let creditCardSignatureObserver = null;
+let creditCardSignatureRefreshTimer = null;
+
 // Inicializar el comparador de precios cuando el DOM esté listo
 // El código de PriceComparator se carga automáticamente desde price-comparator.js (content_script)
 if (document.readyState === 'loading') {
@@ -7,12 +13,14 @@ if (document.readyState === 'loading') {
     if (typeof PriceComparator !== 'undefined') {
       new PriceComparator();
     }
+    initCreditCardSignatureGenerator();
   });
 } else {
   // Si el DOM ya está listo, inicializar inmediatamente
   if (typeof PriceComparator !== 'undefined') {
     new PriceComparator();
   }
+  initCreditCardSignatureGenerator();
 }
 
 // Escuchar mensajes del popup
@@ -1728,6 +1736,586 @@ function base64ToFile(base64String, filename) {
   } catch (error) {
     return null;
   }
+}
+
+function initCreditCardSignatureGenerator() {
+  ensureCreditCardSignatureButton();
+
+  if (creditCardSignatureObserver) {
+    return;
+  }
+
+  creditCardSignatureObserver = new MutationObserver(() => {
+    if (creditCardSignatureRefreshTimer) {
+      clearTimeout(creditCardSignatureRefreshTimer);
+    }
+
+    creditCardSignatureRefreshTimer = setTimeout(() => {
+      ensureCreditCardSignatureButton();
+    }, 200);
+  });
+
+  creditCardSignatureObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+}
+
+function ensureCreditCardSignatureButton() {
+  const actionContainer = findCardActionContainer();
+  const hasCard = hasActiveCreditCard();
+  const existingButton = document.getElementById(CARD_SIGNATURE_BUTTON_ID);
+
+  if (!actionContainer || !hasCard) {
+    if (existingButton) {
+      existingButton.remove();
+    }
+    return;
+  }
+
+  if (existingButton) {
+    return;
+  }
+
+  const button = document.createElement('button');
+  button.id = CARD_SIGNATURE_BUTTON_ID;
+  button.type = 'button';
+  button.className = `btn btn-sm ${CARD_SIGNATURE_BUTTON_CLASS}`;
+  button.textContent = 'Generar consentimiento';
+  button.title = 'Generado por la extensión Cloudbeds ID Scanner';
+  button.addEventListener('click', handleGenerateCardSignatureDocument);
+
+  actionContainer.appendChild(button);
+}
+
+function findCardActionContainer() {
+  return (
+    document.querySelector('#rs-credit-cards-tab-new .card-actions-wrapper .card-actions') ||
+    document.querySelector('[data-hook="credit-card-details"] .card-actions-wrapper .card-actions') ||
+    document.querySelector('#rs-credit-cards-tab-new .card-actions-wrapper') ||
+    document.querySelector('[data-hook="credit-card-details"] .card-actions-wrapper')
+  );
+}
+
+function hasActiveCreditCard() {
+  const cardItems = document.querySelectorAll('ul[data-hook="credit-cards-list"] li');
+  if (!cardItems.length) {
+    return false;
+  }
+
+  const cardNumber = getElementText('[data-hook="credit-card-number"]');
+  const digits = (cardNumber.match(/\d/g) || []).join('');
+  return digits.length >= 4;
+}
+
+async function handleGenerateCardSignatureDocument() {
+  const baseData = await collectCardSignatureData();
+  const confirmedData = await openConsentDetailsDialog(baseData);
+
+  if (!confirmedData) {
+    return;
+  }
+
+  const docContent = buildCardConsentWordHtml(confirmedData);
+  downloadCardSignatureDocument(docContent, confirmedData);
+}
+
+async function collectCardSignatureData() {
+  const guestName = getElementText(
+    '#reservation-summary .header-page-title .page-title h3, .header-page-title .page-title h3'
+  );
+
+  const roomNumber = getFirstAvailableValue([
+    '#rs-accomodations-tab .room-name',
+    '.rs-accomodations-table .room-name',
+    '.res_room_numbers'
+  ]);
+
+  const checkOutDate = getReservationDetailValue('Fecha de Salida');
+  const cardHolder = getElementText('[data-hook="credit-card-holder"]');
+  const cardNumberText = getElementText('[data-hook="credit-card-number"]');
+  const cardLast4 = getLastFourDigits(cardNumberText);
+
+  const today = new Date();
+
+  return {
+    guestName,
+    roomNumber,
+    checkOutDate,
+    cardHolder,
+    cardLast4,
+    pendingAmount: '100',
+    issueDay: String(today.getDate()).padStart(2, '0'),
+    issueMonthName: getSpanishMonthName(today.getMonth()),
+    issueYear: String(today.getFullYear())
+  };
+}
+
+async function ensureGuestTaxIdIsVisible() {
+  const currentDocument = getUnmaskedGuestTaxId();
+  if (currentDocument && !isMaskedDocumentValue(currentDocument)) {
+    return;
+  }
+
+  const toggle = document.querySelector(
+    '.sensitive-data-toggle[data-sensitive-name="guest_tax_id_number"], .sensitive-data-toggle[data-sensitive-name="guest_guest_tax_id_number"]'
+  );
+
+  if (!toggle) {
+    return;
+  }
+
+  toggle.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+
+  if (typeof toggle.click === 'function') {
+    toggle.click();
+  }
+
+  await waitForUnmaskedGuestTaxId(1500);
+}
+
+async function waitForUnmaskedGuestTaxId(timeoutMs = 1500) {
+  const start = Date.now();
+
+  while (Date.now() - start < timeoutMs) {
+    const value = getUnmaskedGuestTaxId();
+    if (value && !isMaskedDocumentValue(value)) {
+      return value;
+    }
+    await sleep(120);
+  }
+
+  return '';
+}
+
+function openConsentDetailsDialog(initialData) {
+  return new Promise(resolve => {
+    const existing = document.getElementById('cloudbeds-consent-dialog-overlay');
+    if (existing) {
+      existing.remove();
+    }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'cloudbeds-consent-dialog-overlay';
+    overlay.className = 'cloudbeds-consent-overlay';
+
+    const dialog = document.createElement('div');
+    dialog.className = 'cloudbeds-consent-dialog';
+
+    const title = document.createElement('h3');
+    title.className = 'cloudbeds-consent-title';
+    title.textContent = 'Confirmar datos del consentimiento';
+
+    const subtitle = document.createElement('p');
+    subtitle.className = 'cloudbeds-consent-subtitle';
+    subtitle.textContent = 'Revisa y completa los campos obligatorios antes de generar el documento.';
+
+    const form = document.createElement('form');
+    form.className = 'cloudbeds-consent-form';
+
+    const error = document.createElement('div');
+    error.className = 'cloudbeds-consent-error';
+    error.style.display = 'none';
+
+    const nameInput = buildConsentInput({
+      label: 'Nombre del cliente *',
+      type: 'text',
+      value: initialData.guestName || '',
+      required: true,
+      placeholder: 'Nombre completo'
+    });
+
+    const amountInput = buildConsentInput({
+      label: 'Cantidad a bloquear (€) *',
+      type: 'number',
+      value: initialData.pendingAmount || '100',
+      required: true,
+      min: '0.01',
+      step: '0.01',
+      placeholder: '100'
+    });
+
+    const actions = document.createElement('div');
+    actions.className = 'cloudbeds-consent-actions';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'btn default btn-sm';
+    cancelBtn.textContent = 'Cancelar';
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.type = 'submit';
+    confirmBtn.className = 'btn blue btn-sm';
+    confirmBtn.textContent = 'Generar documento';
+
+    let finished = false;
+
+    const closeDialog = (result) => {
+      if (finished) return;
+      finished = true;
+      overlay.remove();
+      resolve(result);
+    };
+
+    cancelBtn.addEventListener('click', () => closeDialog(null));
+
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay) {
+        closeDialog(null);
+      }
+    });
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+
+      const guestName = (nameInput.input.value || '').trim();
+      const amountRaw = (amountInput.input.value || '').replace(',', '.').trim();
+      const amountNumber = Number(amountRaw);
+
+      if (!guestName || !amountRaw || !Number.isFinite(amountNumber) || amountNumber <= 0) {
+        error.textContent = 'Nombre y cantidad son obligatorios. La cantidad debe ser mayor que 0.';
+        error.style.display = 'block';
+        return;
+      }
+
+      closeDialog({
+        ...initialData,
+        guestName,
+        pendingAmount: amountRaw
+      });
+    });
+
+    actions.appendChild(cancelBtn);
+    actions.appendChild(confirmBtn);
+
+    form.appendChild(nameInput.wrapper);
+    form.appendChild(amountInput.wrapper);
+    form.appendChild(error);
+    form.appendChild(actions);
+
+    dialog.appendChild(title);
+    dialog.appendChild(subtitle);
+    dialog.appendChild(form);
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+
+    setTimeout(() => {
+      nameInput.input.focus();
+      nameInput.input.select();
+    }, 0);
+  });
+}
+
+function buildConsentInput({ label, type, value, required, min, step, placeholder }) {
+  const wrapper = document.createElement('label');
+  wrapper.className = 'cloudbeds-consent-field';
+
+  const labelEl = document.createElement('span');
+  labelEl.className = 'cloudbeds-consent-label';
+  labelEl.textContent = label;
+
+  const input = document.createElement('input');
+  input.className = 'cloudbeds-consent-input';
+  input.type = type;
+  input.value = value;
+  input.required = Boolean(required);
+
+  if (placeholder) input.placeholder = placeholder;
+  if (min != null) input.min = min;
+  if (step != null) input.step = step;
+
+  wrapper.appendChild(labelEl);
+  wrapper.appendChild(input);
+
+  return { wrapper, input };
+}
+
+function buildCardConsentWordHtml(data) {
+  const checkOutDateParts = splitDateParts(data.checkOutDate);
+  const today = new Date();
+  const fullDateText = `${String(today.getDate()).padStart(2, '0')} de ${getSpanishMonthName(today.getMonth())} de ${today.getFullYear()}`;
+  const safeGuestName = escapeHtml(fillOrPlaceholder(data.guestName, 45));
+  const safeRoomNumber = escapeHtml(fillOrPlaceholder(data.roomNumber, 8));
+  const safeAmount = escapeHtml(fillOrPlaceholder(data.pendingAmount, 6));
+  const safeCardHolder = escapeHtml(fillOrPlaceholder(data.cardHolder, 30));
+  const safeLast4 = escapeHtml(fillOrPlaceholder(data.cardLast4, 4));
+  const safeFullDateText = escapeHtml(fullDateText);
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>Consentimiento de garantía</title>
+  <style>
+    @page { margin: 2cm; }
+    body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; color: #000; line-height: 1.45; }
+    .header { padding: 12px 14px; margin-bottom: 14px; }
+    .title { margin: 0; font-size: 16pt; font-weight: 700; color: #000; text-transform: uppercase; text-align: center; }
+    .subtitle { margin: 6px 0 0; font-size: 10.5pt; text-align: center; color: #000; }
+    h2 { font-size: 12pt; margin: 14px 0 8px; color: #000; text-transform: uppercase; }
+    p { margin: 0 0 8px 0; }
+    .box { padding: 0; margin-bottom: 10px; }
+    .line { margin-bottom: 6px; }
+    .label { font-weight: 700; }
+    .table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+    .table td { border: 1px solid #000; padding: 7px 8px; vertical-align: top; }
+    .muted { color: #000; }
+    .legal { border-left: 0; padding-left: 0; }
+    .signature-block { margin-top: 20px; }
+    .signature-line { margin-top: 36px; border-top: 1px solid #000; width: 280px; padding-top: 6px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <p class="title">Consentimiento de depósito de garantía</p>
+    <p class="subtitle">Documento de autorización para preautorización de tarjeta</p>
+  </div>
+
+  <table class="table">
+    <tr>
+      <td colspan="2"><span class="label">Nombre del huésped principal</span><br>${safeGuestName}</td>
+    </tr>
+    <tr>
+      <td><span class="label">Número de habitación</span><br>${safeRoomNumber}</td>
+      <td><span class="label">Fecha de salida</span><br>${checkOutDateParts.day} / ${checkOutDateParts.month} / ${checkOutDateParts.year}</td>
+    </tr>
+    <tr>
+      <td><span class="label">Titular de la tarjeta</span><br>${safeCardHolder}</td>
+      <td><span class="label">Últimos 4 dígitos</span><br>**** **** **** ${safeLast4}</td>
+    </tr>
+    <tr>
+      <td colspan="2"><span class="label">Importe de preautorización</span><br>${safeAmount} €</td>
+    </tr>
+  </table>
+
+  <h2>Condiciones</h2>
+  <div>
+    <p>Se requiere una garantía mediante tarjeta de crédito o débito para cubrir posibles desperfectos o incumplimiento de las normas del establecimiento.</p>
+    <p><span class="label">Naturaleza del cargo:</span> Esta operación no es un cobro, sino una retención temporal de saldo que garantiza la disponibilidad de fondos en caso de ser necesarios.</p>
+    <p><span class="label">Liberación:</span> El hotel ordenará la liberación del bloqueo tras el check-out y la revisión de la habitación.</p>
+    <p><span class="label">Plazos bancarios:</span> La desaparición del bloqueo en el extracto depende de la entidad financiera y puede demorar entre 2 y 10 días hábiles.</p>
+  </div>
+
+  <h2>Autorización</h2>
+  <p>El firmante autoriza al hotel a realizar la mencionada preautorización y, en caso de detectarse daños en mobiliario, instalaciones o deudas pendientes al finalizar la estancia, autoriza expresamente el cobro de los importes correspondientes contra dicha garantía.</p>
+
+  <div class="signature-block">
+    <p><span class="label">Fecha del consentimiento:</span> ${safeFullDateText}</p>
+    <p class="muted">Lugar: Torremolinos</p>
+    <br>
+    <br>
+    <div class="signature-line">Firma del huésped</div>
+  </div>
+</body>
+</html>`;
+}
+
+function downloadCardSignatureDocument(content, data) {
+  const safeName = sanitizeFileName(data.guestName || 'huesped');
+  const today = new Date();
+  const dateSegment = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const fileName = `consentimiento-tarjeta-${safeName}-${dateSegment}.doc`;
+
+  const blob = new Blob([content], {
+    type: 'application/msword;charset=utf-8'
+  });
+
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+}
+
+function getFirstAvailableValue(selectors) {
+  for (const selector of selectors) {
+    const value = getElementValueOrText(selector);
+    if (value) {
+      return value;
+    }
+  }
+  return '';
+}
+
+function getUnmaskedGuestTaxId() {
+  const primarySelector = '[data-hook="guest-tax-id-text-value"]';
+  const primaryElement = document.querySelector(primarySelector);
+
+  if (primaryElement) {
+    const primaryCandidates = [
+      primaryElement.textContent || '',
+      primaryElement.getAttribute('data-value') || '',
+      primaryElement.getAttribute('data-raw-value') || '',
+      primaryElement.getAttribute('value') || ''
+    ];
+
+    for (const candidate of primaryCandidates) {
+      const cleaned = (candidate || '').replace(/\s+/g, ' ').trim();
+      if (cleaned && !isMaskedDocumentValue(cleaned)) {
+        return cleaned;
+      }
+    }
+  }
+
+  const fallbackSelectors = [
+    'input[name="guest_guest_tax_id_number"]',
+    'input.f_guest_tax_id_number',
+    'input[name="guest_tax_id"]',
+    '[data-name="guest_guest_tax_id_number"]',
+    '[data-hook="guest-guest-tax-id-number-text-value"]',
+    '[data-hook="guest-document-number-text-value"]',
+    'input[name="guest_document_number"]',
+    '#guest_document_number'
+  ];
+
+  let maskedValue = '';
+
+  for (const selector of fallbackSelectors) {
+    const element = document.querySelector(selector);
+    if (!element) continue;
+
+    const candidates = [
+      element.value || '',
+      element.textContent || '',
+      element.getAttribute('data-value') || '',
+      element.getAttribute('data-raw-value') || '',
+      element.getAttribute('value') || ''
+    ];
+
+    for (const candidate of candidates) {
+      const cleaned = (candidate || '').replace(/\s+/g, ' ').trim();
+      if (!cleaned) continue;
+
+      if (!isMaskedDocumentValue(cleaned)) {
+        return cleaned;
+      }
+
+      if (!maskedValue) {
+        maskedValue = cleaned;
+      }
+    }
+  }
+
+  return maskedValue;
+}
+
+function isMaskedDocumentValue(value) {
+  const normalized = (value || '').toLowerCase().trim();
+  if (!normalized) return true;
+
+  if (normalized.includes('xxxx') || normalized.includes('****')) {
+    return true;
+  }
+
+  const stripped = normalized.replace(/[\s\-_.]/g, '');
+  return /^([*x•#])+$/i.test(stripped);
+}
+
+function getElementText(selector) {
+  const element = document.querySelector(selector);
+  if (!element) return '';
+  return (element.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
+function getElementValueOrText(selector) {
+  const element = document.querySelector(selector);
+  if (!element) return '';
+
+  const value = element.value || element.textContent || '';
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function getReservationDetailValue(labelText) {
+  const detailItems = document.querySelectorAll('#rs-basic-info-details .detail-item');
+
+  for (const item of detailItems) {
+    const label = item.querySelector('.small-text');
+    const value = item.querySelector('.big-text');
+
+    if (!label || !value) continue;
+
+    const normalizedLabel = (label.textContent || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    if (normalizedLabel.includes(labelText.toLowerCase())) {
+      return (value.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+  }
+
+  return '';
+}
+
+function getLastFourDigits(text) {
+  const digits = (text.match(/\d/g) || []).join('');
+  if (!digits) return '';
+  return digits.slice(-4);
+}
+
+function getAmountFromText(text) {
+  if (!text) return '';
+  const amountMatch = text.match(/(\d+[\.,]?\d*)/g);
+  if (!amountMatch || !amountMatch.length) return '';
+  return amountMatch[amountMatch.length - 1];
+}
+
+function splitDateParts(dateText) {
+  const match = (dateText || '').match(/(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/);
+  if (!match) {
+    return { day: '___', month: '___', year: '_____' };
+  }
+
+  return {
+    day: String(match[1]).padStart(2, '0'),
+    month: String(match[2]).padStart(2, '0'),
+    year: String(match[3]).padStart(4, '0')
+  };
+}
+
+function fillOrPlaceholder(value, fallbackLength) {
+  if (value && String(value).trim()) {
+    return String(value).trim();
+  }
+  return '_'.repeat(fallbackLength);
+}
+
+function getSpanishMonthName(monthIndex) {
+  const months = [
+    'enero',
+    'febrero',
+    'marzo',
+    'abril',
+    'mayo',
+    'junio',
+    'julio',
+    'agosto',
+    'septiembre',
+    'octubre',
+    'noviembre',
+    'diciembre'
+  ];
+
+  return months[monthIndex] || '';
+}
+
+function sanitizeFileName(value) {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 50) || 'huesped';
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // Marcar que el content script está listo
