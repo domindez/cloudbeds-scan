@@ -7,6 +7,9 @@ let selectedImages = []; // Para DNI español (2 imágenes)
 let imageToUpload = null; // Imagen que se subirá a Cloudbeds
 let extractedData = null;
 let isDniMode = false; // Modo DNI español (2 caras)
+let selectedScanEntries = []; // Archivos cargados desde carpeta de escaneos
+let selectedSourceMode = 'manual'; // 'manual' | 'scan-folder'
+let selectedManualFilesMeta = []; // Metadatos de archivos elegidos manualmente
 
 // Elementos del DOM
 const apiKeyInput = document.getElementById('apiKey');
@@ -217,6 +220,13 @@ dropZone.addEventListener('drop', (e) => {
   dropZone.classList.remove('dragover');
   const file = e.dataTransfer.files[0];
   if (file && file.type.startsWith('image/')) {
+    selectedSourceMode = 'manual';
+    selectedScanEntries = [];
+    selectedManualFilesMeta = [{
+      name: file.name,
+      size: file.size,
+      lastModified: file.lastModified
+    }];
     handleImageFile(file);
   }
 });
@@ -232,6 +242,13 @@ selectFileBtn.addEventListener('click', async (e) => {
     const errorMsg = editCheck.error || 'Primero haz clic en "Editar detalles" en Cloudbeds';
     showStatusMessage(`⚠️ ${errorMsg}`, 'error');
     return;
+  }
+
+  if (!scanFolderHandle) {
+    scanFolderHandle = await loadFolderHandle();
+  }
+  if (scanFolderHandle) {
+    await primeWritePermissionInUserGesture(scanFolderHandle);
   }
   
   fileInput.click();
@@ -249,6 +266,13 @@ selectDniFilesBtn.addEventListener('click', async (e) => {
     showStatusMessage(`⚠️ ${errorMsg}`, 'error');
     return;
   }
+
+  if (!scanFolderHandle) {
+    scanFolderHandle = await loadFolderHandle();
+  }
+  if (scanFolderHandle) {
+    await primeWritePermissionInUserGesture(scanFolderHandle);
+  }
   
   fileInputMultiple.click();
 });
@@ -257,6 +281,13 @@ selectDniFilesBtn.addEventListener('click', async (e) => {
 fileInput.addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (file) {
+    selectedSourceMode = 'manual';
+    selectedScanEntries = [];
+    selectedManualFilesMeta = [{
+      name: file.name,
+      size: file.size,
+      lastModified: file.lastModified
+    }];
     handleImageFile(file);
   }
 });
@@ -267,6 +298,13 @@ fileInputMultiple.addEventListener('change', (e) => {
   if (files.length >= 2) {
     // Ordenar por fecha de modificación (más reciente primero)
     files.sort((a, b) => b.lastModified - a.lastModified);
+    selectedSourceMode = 'manual';
+    selectedScanEntries = [];
+    selectedManualFilesMeta = files.slice(0, 2).map(file => ({
+      name: file.name,
+      size: file.size,
+      lastModified: file.lastModified
+    }));
     handleDniImages(files[0], files[1]);
   } else if (files.length === 1) {
     showStatusMessage('⚠️ Selecciona 2 imágenes (anverso y reverso)', 'error');
@@ -603,6 +641,9 @@ clearDniImages.addEventListener('click', () => {
 function clearAllImages() {
   selectedImage = null;
   selectedImages = [];
+  selectedSourceMode = 'manual';
+  selectedScanEntries = [];
+  selectedManualFilesMeta = [];
   imageToUpload = null;
   isDniMode = false;
   extractedData = null;
@@ -697,8 +738,13 @@ scanBtn.addEventListener('click', async () => {
     } else {
       extractedData = await extractDataFromImage(stored.openaiApiKey, selectedImage);
     }
+
+    const renameResult = await renameScannedFilesToClientName(extractedData);
     
-    updateStep(2, 'completed', 'Analizando documento', 'Datos extraídos ✓');
+    const step2Message = renameResult.renamedCount > 0
+      ? `Datos extraídos ✓ · ${renameResult.renamedCount} archivo(s) renombrado(s)`
+      : `Datos extraídos ✓ · renombrado no aplicado (${renameResult.reason || 'sin motivo'})`;
+    updateStep(2, 'completed', 'Analizando documento', step2Message);
     displayProgressData(extractedData);
     
     // Paso 3: Rellenar formulario + Subida de foto en PARALELO
@@ -1429,6 +1475,288 @@ async function verifyPermission(handle) {
   return false;
 }
 
+async function verifyWritePermission(handle) {
+  if (!handle) return false;
+
+  try {
+    const options = { mode: 'readwrite' };
+    const permissionState = await handle.queryPermission(options);
+    if (permissionState === 'granted') {
+      return true;
+    }
+
+    if ((await handle.requestPermission(options)) === 'granted') {
+      return true;
+    }
+  } catch (error) {
+    console.warn('[WARN] Error verificando permiso de escritura:', error);
+    return false;
+  }
+
+  return false;
+}
+
+async function primeWritePermissionInUserGesture(handle) {
+  try {
+    await verifyWritePermission(handle);
+  } catch (error) {
+    console.warn('[WARN] No se pudo preparar permiso de escritura en gesto de usuario:', error);
+  }
+}
+
+function sanitizeFileNamePart(value) {
+  if (!value) return '';
+  return String(value)
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function buildClientBaseName(data) {
+  const parts = [data?.firstName, data?.lastName, data?.lastName2]
+    .map(sanitizeFileNamePart)
+    .filter(Boolean);
+
+  return parts.length > 0 ? parts.join(' ') : null;
+}
+
+function splitFileName(fileName) {
+  const lastDot = fileName.lastIndexOf('.');
+  if (lastDot <= 0) {
+    return { nameWithoutExt: fileName, ext: '' };
+  }
+
+  return {
+    nameWithoutExt: fileName.slice(0, lastDot),
+    ext: fileName.slice(lastDot)
+  };
+}
+
+async function fileExistsInDirectory(directoryHandle, fileName) {
+  try {
+    await directoryHandle.getFileHandle(fileName);
+    return true;
+  } catch (error) {
+    if (error?.name === 'NotFoundError') {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function getUniqueFileName(directoryHandle, desiredName) {
+  const safeDesiredName = sanitizeFileNamePart(desiredName);
+  if (!(await fileExistsInDirectory(directoryHandle, safeDesiredName))) {
+    return safeDesiredName;
+  }
+
+  const { nameWithoutExt, ext } = splitFileName(safeDesiredName);
+  let index = 2;
+  while (true) {
+    const candidate = `${nameWithoutExt} (${index})${ext}`;
+    if (!(await fileExistsInDirectory(directoryHandle, candidate))) {
+      return candidate;
+    }
+    index += 1;
+  }
+}
+
+async function copyFileWithinDirectory(directoryHandle, sourceName, targetName) {
+  const sourceHandle = await directoryHandle.getFileHandle(sourceName);
+  const sourceFile = await sourceHandle.getFile();
+
+  const targetHandle = await directoryHandle.getFileHandle(targetName, { create: true });
+  const writable = await targetHandle.createWritable();
+  await writable.write(await sourceFile.arrayBuffer());
+  await writable.close();
+}
+
+async function getLatestImageEntryNamesFromFolder(directoryHandle, limit) {
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.gif', '.webp'];
+  const items = [];
+
+  for await (const entry of directoryHandle.values()) {
+    if (entry.kind !== 'file') continue;
+
+    const lowerName = entry.name.toLowerCase();
+    const isImage = imageExtensions.some(ext => lowerName.endsWith(ext));
+    if (!isImage) continue;
+
+    const file = await entry.getFile();
+    items.push({ name: entry.name, lastModified: file.lastModified });
+  }
+
+  items.sort((a, b) => b.lastModified - a.lastModified);
+  return items.slice(0, limit).map(item => ({ name: item.name }));
+}
+
+async function resolveManualSelectionEntriesFromScanFolder(directoryHandle, manualFilesMeta) {
+  if (!Array.isArray(manualFilesMeta) || manualFilesMeta.length === 0) {
+    return [];
+  }
+
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.gif', '.webp'];
+  const folderEntries = [];
+
+  for await (const entry of directoryHandle.values()) {
+    if (entry.kind !== 'file') continue;
+
+    const lowerName = entry.name.toLowerCase();
+    const isImage = imageExtensions.some(ext => lowerName.endsWith(ext));
+    if (!isImage) continue;
+
+    try {
+      const file = await entry.getFile();
+      folderEntries.push({
+        name: entry.name,
+        lowerName,
+        size: file.size,
+        lastModified: file.lastModified
+      });
+    } catch (error) {
+      continue;
+    }
+  }
+
+  const resolved = [];
+  const usedNames = new Set();
+
+  for (const meta of manualFilesMeta) {
+    if (!meta?.name) continue;
+
+    const manualName = String(meta.name).toLowerCase();
+    const exactByName = folderEntries.find(item => item.lowerName === manualName && !usedNames.has(item.name));
+    if (exactByName) {
+      usedNames.add(exactByName.name);
+      resolved.push({ name: exactByName.name });
+      continue;
+    }
+
+    const sameSizeCandidates = folderEntries.filter(item => !usedNames.has(item.name) && typeof meta.size === 'number' && item.size === meta.size);
+    if (sameSizeCandidates.length === 1) {
+      usedNames.add(sameSizeCandidates[0].name);
+      resolved.push({ name: sameSizeCandidates[0].name });
+      continue;
+    }
+
+    const manualExt = manualName.includes('.') ? manualName.slice(manualName.lastIndexOf('.')) : '';
+    const extCandidates = folderEntries.filter(item => {
+      if (usedNames.has(item.name)) return false;
+      if (!manualExt) return true;
+      return item.lowerName.endsWith(manualExt);
+    });
+
+    if (extCandidates.length > 0 && typeof meta.lastModified === 'number') {
+      extCandidates.sort((a, b) => Math.abs(a.lastModified - meta.lastModified) - Math.abs(b.lastModified - meta.lastModified));
+      const best = extCandidates[0];
+      const diffMs = Math.abs(best.lastModified - meta.lastModified);
+
+      if (diffMs <= 60000) {
+        usedNames.add(best.name);
+        resolved.push({ name: best.name });
+      }
+    }
+  }
+
+  return resolved;
+}
+
+async function renameScannedFilesToClientName(data) {
+  try {
+    if (!scanFolderHandle) {
+      scanFolderHandle = await loadFolderHandle();
+    }
+
+    if (!scanFolderHandle) {
+      return { renamedCount: 0, reason: 'carpeta no disponible' };
+    }
+
+    let entriesToRename = Array.isArray(selectedScanEntries) ? [...selectedScanEntries] : [];
+    if (entriesToRename.length === 0) {
+      if (selectedSourceMode !== 'scan-folder') {
+        const resolvedManualEntries = await resolveManualSelectionEntriesFromScanFolder(scanFolderHandle, selectedManualFilesMeta);
+        if (resolvedManualEntries.length === 0) {
+          return { renamedCount: 0, reason: 'archivo manual fuera de carpeta de escaneos' };
+        }
+        entriesToRename = resolvedManualEntries;
+      } else {
+        const fallbackCount = isDniMode ? 2 : 1;
+        entriesToRename = await getLatestImageEntryNamesFromFolder(scanFolderHandle, fallbackCount);
+      }
+    }
+
+    if (entriesToRename.length === 0) {
+      return { renamedCount: 0, reason: 'no se localizaron archivos de origen' };
+    }
+
+    const baseName = buildClientBaseName(data);
+    if (!baseName) {
+      return { renamedCount: 0, reason: 'nombre del cliente no detectado' };
+    }
+
+    const hasWritePermission = await verifyWritePermission(scanFolderHandle);
+    if (!hasWritePermission) {
+      console.warn('[WARN] Sin permisos de escritura para renombrar archivos en la carpeta de escaneos');
+      return { renamedCount: 0, reason: 'permiso de escritura denegado' };
+    }
+
+    const uniqueEntries = [];
+    const seenNames = new Set();
+    for (const entry of entriesToRename) {
+      const name = entry?.name;
+      if (!name || seenNames.has(name)) continue;
+      seenNames.add(name);
+      uniqueEntries.push({ name });
+    }
+
+    let renamedCount = 0;
+    let failedCount = 0;
+    const multipleFiles = uniqueEntries.length > 1;
+
+    for (let index = 0; index < uniqueEntries.length; index += 1) {
+      const entry = uniqueEntries[index];
+
+      try {
+        const { ext } = splitFileName(entry.name);
+        const suffix = multipleFiles ? ` ${index + 1}` : '';
+        const desiredName = `${baseName}${suffix}${ext}`;
+        const finalName = await getUniqueFileName(scanFolderHandle, desiredName);
+
+        await copyFileWithinDirectory(scanFolderHandle, entry.name, finalName);
+
+        if (finalName !== entry.name) {
+          try {
+            await scanFolderHandle.removeEntry(entry.name);
+          } catch (deleteError) {
+            console.warn('[WARN] No se pudo borrar el archivo original tras renombrar:', entry.name, deleteError);
+          }
+        }
+
+        renamedCount += 1;
+      } catch (entryError) {
+        failedCount += 1;
+        console.error('[ERROR] Fallo renombrando archivo:', entry?.name, entryError);
+      }
+    }
+
+    selectedScanEntries = [];
+    selectedManualFilesMeta = [];
+
+    if (renamedCount > 0 && failedCount > 0) {
+      return { renamedCount, reason: `${failedCount} archivo(s) no se pudieron renombrar` };
+    }
+
+    if (renamedCount === 0) {
+      return { renamedCount: 0, reason: 'falló la operación de renombrado' };
+    }
+
+    return { renamedCount, reason: null };
+  } catch (error) {
+    console.error('[ERROR] Error al renombrar archivos escaneados:', error);
+    return { renamedCount: 0, reason: error?.message || 'error inesperado' };
+  }
+}
+
 // Variable para guardar el handle de la carpeta
 let scanFolderHandle = null;
 
@@ -1605,6 +1933,8 @@ loadScanBtn.addEventListener('click', async () => {
       showStatusMessage('Permiso denegado. Configura la carpeta en ⚙️', 'error');
       return;
     }
+
+    await primeWritePermissionInUserGesture(scanFolderHandle);
     
     // Verificar que estamos en modo edición
     const editCheck = await checkEditMode();
@@ -1618,6 +1948,7 @@ loadScanBtn.addEventListener('click', async () => {
     
     // Buscar el archivo más reciente en la carpeta
     let latestFile = null;
+    let latestFileName = null;
     let latestTime = 0;
     
     const imageExtensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.gif', '.webp'];
@@ -1632,6 +1963,7 @@ loadScanBtn.addEventListener('click', async () => {
           if (file.lastModified > latestTime) {
             latestTime = file.lastModified;
             latestFile = file;
+            latestFileName = entry.name;
           }
         }
       }
@@ -1643,6 +1975,9 @@ loadScanBtn.addEventListener('click', async () => {
     }
     
     // Cargar la imagen
+    selectedSourceMode = 'scan-folder';
+    selectedScanEntries = latestFileName ? [{ name: latestFileName }] : [];
+    selectedManualFilesMeta = [];
     handleImageFile(latestFile);
     hideStatusMessage();
     
@@ -1671,6 +2006,8 @@ loadDniBtn.addEventListener('click', async () => {
       showStatusMessage('Permiso denegado. Configura la carpeta en ⚙️', 'error');
       return;
     }
+
+    await primeWritePermissionInUserGesture(scanFolderHandle);
     
     // Verificar que estamos en modo edición
     const editCheck = await checkEditMode();
@@ -1693,7 +2030,11 @@ loadDniBtn.addEventListener('click', async () => {
         
         if (isImage) {
           const file = await entry.getFile();
-          files.push(file);
+          files.push({
+            file,
+            name: entry.name,
+            lastModified: file.lastModified
+          });
         }
       }
     }
@@ -1707,8 +2048,14 @@ loadDniBtn.addEventListener('click', async () => {
     files.sort((a, b) => b.lastModified - a.lastModified);
     
     // Coger los 2 más recientes
-    const file1 = files[0];
-    const file2 = files[1];
+    const file1 = files[0].file;
+    const file2 = files[1].file;
+    selectedSourceMode = 'scan-folder';
+    selectedScanEntries = [
+      { name: files[0].name },
+      { name: files[1].name }
+    ];
+    selectedManualFilesMeta = [];
     
     handleDniImages(file1, file2);
     hideStatusMessage();
