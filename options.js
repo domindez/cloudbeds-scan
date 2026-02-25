@@ -7,7 +7,7 @@ const STORE_NAME = 'folderHandles';
 
 function openDatabase() {
   return new Promise((resolve, reject) => {
-    console.log('[DEBUG] Abriendo IndexedDB...');
+    ('[DEBUG] Abriendo IndexedDB...');
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     
     request.onerror = () => {
@@ -16,23 +16,23 @@ function openDatabase() {
     };
     
     request.onsuccess = () => {
-      console.log('[DEBUG] IndexedDB abierta correctamente');
+      ('[DEBUG] IndexedDB abierta correctamente');
       resolve(request.result);
     };
     
     request.onupgradeneeded = (event) => {
-      console.log('[DEBUG] Creando object store...');
+      ('[DEBUG] Creando object store...');
       const db = event.target.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME);
-        console.log('[DEBUG] Object store creado');
+        ('[DEBUG] Object store creado');
       }
     };
   });
 }
 
 async function saveFolderHandle(handle) {
-  console.log('[DEBUG] Guardando folder handle:', handle.name);
+  ('[DEBUG] Guardando folder handle:', handle.name);
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE_NAME, 'readwrite');
@@ -45,13 +45,13 @@ async function saveFolderHandle(handle) {
     };
     
     request.onsuccess = () => {
-      console.log('[DEBUG] Handle guardado correctamente en IndexedDB');
+      ('[DEBUG] Handle guardado correctamente en IndexedDB');
       resolve();
     };
     
     transaction.oncomplete = () => {
       db.close();
-      console.log('[DEBUG] Transacción completada');
+      ('[DEBUG] Transacción completada');
     };
     
     transaction.onerror = () => {
@@ -102,9 +102,9 @@ class OptionsManager {
         if (savedHandle) {
             this.scanFolderHandle = savedHandle;
             scanFolderPath.textContent = savedHandle.name;
-            console.log('[DEBUG] Carpeta cargada:', savedHandle.name);
+            ('[DEBUG] Carpeta cargada:', savedHandle.name);
         } else {
-            console.log('[DEBUG] No hay carpeta guardada');
+            ('[DEBUG] No hay carpeta guardada');
         }
     }
 
@@ -187,7 +187,7 @@ class OptionsManager {
     }
 
     async selectFolder() {
-        console.log('[DEBUG] Seleccionando carpeta desde options.html...');
+        ('[DEBUG] Seleccionando carpeta desde options.html...');
         
         try {
             // En una página completa (no popup), esto debería funcionar
@@ -195,7 +195,7 @@ class OptionsManager {
                 mode: 'read'
             });
             
-            console.log('[DEBUG] Carpeta seleccionada:', this.scanFolderHandle.name);
+            ('[DEBUG] Carpeta seleccionada:', this.scanFolderHandle.name);
             
             // Guardar en IndexedDB
             await saveFolderHandle(this.scanFolderHandle);

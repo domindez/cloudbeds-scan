@@ -141,14 +141,14 @@ cancelBtn.addEventListener('click', () => {
 
 // Botones "Sin foto"
 noPhotoBtn.addEventListener('click', () => {
-  console.log('[DEBUG] Usuario eligió continuar sin foto');
+  ('[DEBUG] Usuario eligió continuar sin foto');
   imageToUpload = null;
   faceSelector.classList.add('hidden');
   faceDetectionError.classList.remove('hidden');
 });
 
 noPhotoBtnDni.addEventListener('click', () => {
-  console.log('[DEBUG] Usuario eligió continuar sin foto (DNI)');
+  ('[DEBUG] Usuario eligió continuar sin foto (DNI)');
   imageToUpload = null;
   faceSelectorDni.classList.add('hidden');
   faceDetectionError.classList.remove('hidden');
@@ -315,9 +315,9 @@ fileInputMultiple.addEventListener('change', (e) => {
 
 // Función para intentar extraer la cara del documento
 async function attemptFaceExtraction() {
-  console.log('[DEBUG] attemptFaceExtraction - Iniciando...');
-  console.log('[DEBUG] uploadPhotoCheckbox.checked:', uploadPhotoCheckbox.checked);
-  console.log('[DEBUG] isDniMode:', isDniMode);
+  ('[DEBUG] attemptFaceExtraction - Iniciando...');
+  ('[DEBUG] uploadPhotoCheckbox.checked:', uploadPhotoCheckbox.checked);
+  ('[DEBUG] isDniMode:', isDniMode);
   
   // Ocultar mensajes previos
   faceDetectionError.classList.add('hidden');
@@ -328,7 +328,7 @@ async function attemptFaceExtraction() {
   
   // Si la opción de subir foto no está activada, usar imagen completa o DNI según corresponda
   if (!uploadPhotoCheckbox.checked) {
-    console.log('[DEBUG] Subida de foto desactivada, usando imagen completa');
+    ('[DEBUG] Subida de foto desactivada, usando imagen completa');
     if (isDniMode) {
       imageToUpload = selectedImages[1]; // Imagen 2 del DNI (anverso)
     } else {
@@ -344,7 +344,7 @@ async function attemptFaceExtraction() {
     return;
   }
   
-  console.log('[DEBUG] Face detector disponible, procediendo con extracción...');
+  ('[DEBUG] Face detector disponible, procediendo con extracción...');
   
   // Intentar extraer la cara
   if (isDniMode) {
@@ -359,79 +359,79 @@ async function attemptFaceExtraction() {
 // Extraer cara de DNI (intentar con ambas imágenes)
 async function attemptDniFaceExtraction() {
   const [img1, img2] = selectedImages;
-  console.log('[DEBUG] attemptDniFaceExtraction - Intentando con DNI (2 imágenes)');
+  ('[DEBUG] attemptDniFaceExtraction - Intentando con DNI (2 imágenes)');
   
   let lastError = null;
   
   // Intentar con imagen 1
   try {
-    console.log('[DEBUG] Procesando imagen 1 del DNI...');
+    ('[DEBUG] Procesando imagen 1 del DNI...');
     const result = await window.faceDetector.extractFaceFromDocument(img1, {
       padding: 0.3,
       minConfidence: 0.6,
       targetSize: 500
     });
     
-    console.log('[DEBUG] Resultado imagen 1:', {
+    ('[DEBUG] Resultado imagen 1:', {
       needsManualSelection: result.needsManualSelection,
       confidence: result.confidence,
       totalFaces: result.totalFaces
     });
     
     if (result.needsManualSelection) {
-      console.log('[DEBUG] Necesita selección manual, obteniendo todas las caras...');
+      ('[DEBUG] Necesita selección manual, obteniendo todas las caras...');
       // Obtener todas las caras para selección manual
       const allFaces = await window.faceDetector.getAllFacesFromDocument(img1, {
         padding: 0.3,
         targetSize: 500
       });
-      console.log('[DEBUG] Caras detectadas:', allFaces.faces?.length || 0);
+      ('[DEBUG] Caras detectadas:', allFaces.faces?.length || 0);
       await showFaceSelector(allFaces);
       return;
     } else {
       imageToUpload = result.imageBase64;
-      console.log(`[DEBUG] ✓ Foto automática de imagen 1 (${(result.confidence * 100).toFixed(1)}%)`);
+      (`[DEBUG] ✓ Foto automática de imagen 1 (${(result.confidence * 100).toFixed(1)}%)`);
       faceDetectionError.classList.add('hidden');
       return;
     }
   } catch (error1) {
-    console.log('[DEBUG] Error en imagen 1:', error1.message);
+    ('[DEBUG] Error en imagen 1:', error1.message);
     lastError = error1;
   }
   
   // Intentar con imagen 2
   try {
-    console.log('[DEBUG] Procesando imagen 2 del DNI...');
+    ('[DEBUG] Procesando imagen 2 del DNI...');
     const result = await window.faceDetector.extractFaceFromDocument(img2, {
       padding: 0.3,
       minConfidence: 0.6,
       targetSize: 500
     });
     
-    console.log('[DEBUG] Resultado imagen 2:', {
+    ('[DEBUG] Resultado imagen 2:', {
       needsManualSelection: result.needsManualSelection,
       confidence: result.confidence,
       totalFaces: result.totalFaces
     });
     
     if (result.needsManualSelection) {
-      console.log('[DEBUG] Necesita selección manual, obteniendo todas las caras...');
+      ('[DEBUG] Necesita selección manual, obteniendo todas las caras...');
       // Obtener todas las caras para selección manual
       const allFaces = await window.faceDetector.getAllFacesFromDocument(img2, {
         padding: 0.3,
         targetSize: 500
       });
-      console.log('[DEBUG] Caras detectadas:', allFaces.faces?.length || 0);
+      ('[DEBUG] Caras detectadas:', allFaces.faces?.length || 0);
       await showFaceSelector(allFaces);
       return;
     } else {
       imageToUpload = result.imageBase64;
-      console.log(`[DEBUG] ✓ Foto automática de imagen 2 (${(result.confidence * 100).toFixed(1)}%)`);
+      (`[DEBUG] ✓ Foto automática de imagen 2 (${(result.confidence * 100).toFixed(1)}%)`);
       faceDetectionError.classList.add('hidden');
       return;
     }
   } catch (error2) {
-    console.log('[DEBUG] Error en imagen 2:', error2.message);
+    ('[DEBUG] Error en imagen 2:', error2.message);
     lastError = error2;
   }
   
@@ -446,7 +446,7 @@ async function attemptDniFaceExtraction() {
 
 // Extraer cara de imagen única
 async function attemptSingleImageFaceExtraction() {
-  console.log('[DEBUG] attemptSingleImageFaceExtraction - Procesando imagen única...');
+  ('[DEBUG] attemptSingleImageFaceExtraction - Procesando imagen única...');
   
   try {
     const result = await window.faceDetector.extractFaceFromDocument(selectedImage, {
@@ -455,7 +455,7 @@ async function attemptSingleImageFaceExtraction() {
       targetSize: 500
     });
     
-    console.log('[DEBUG] Resultado detección:', {
+    ('[DEBUG] Resultado detección:', {
       needsManualSelection: result.needsManualSelection,
       confidence: result.confidence,
       totalFaces: result.totalFaces,
@@ -463,17 +463,17 @@ async function attemptSingleImageFaceExtraction() {
     });
     
     if (result.needsManualSelection) {
-      console.log('[DEBUG] Necesita selección manual, obteniendo todas las caras...');
+      ('[DEBUG] Necesita selección manual, obteniendo todas las caras...');
       // Obtener todas las caras para selección manual
       const allFaces = await window.faceDetector.getAllFacesFromDocument(selectedImage, {
         padding: 0.3,
         targetSize: 500
       });
-      console.log('[DEBUG] Caras detectadas para selección:', allFaces.faces?.length || 0);
+      ('[DEBUG] Caras detectadas para selección:', allFaces.faces?.length || 0);
       await showFaceSelector(allFaces);
     } else {
       imageToUpload = result.imageBase64;
-      console.log(`[DEBUG] ✓ Foto automática extraída (${(result.confidence * 100).toFixed(1)}%)`);
+      (`[DEBUG] ✓ Foto automática extraída (${(result.confidence * 100).toFixed(1)}%)`);
       faceDetectionError.classList.add('hidden');
     }
   } catch (error) {
@@ -488,8 +488,8 @@ async function attemptSingleImageFaceExtraction() {
 
 // Mostrar selector de caras
 async function showFaceSelector(allFaces) {
-  console.log('[DEBUG] showFaceSelector - Recibido:', allFaces);
-  console.log('[DEBUG] isDniMode:', isDniMode);
+  ('[DEBUG] showFaceSelector - Recibido:', allFaces);
+  ('[DEBUG] isDniMode:', isDniMode);
   
   if (!allFaces || !allFaces.faces || allFaces.faces.length === 0) {
     console.error('[DEBUG] No hay caras para mostrar en el selector');
@@ -498,9 +498,9 @@ async function showFaceSelector(allFaces) {
     return;
   }
   
-  console.log('[DEBUG] Mostrando selector con', allFaces.faces.length, 'caras');
-  console.log('[DEBUG] Mejor cara (índice):', allFaces.bestFaceIndex);
-  console.log('[DEBUG] Confianza más alta:', allFaces.highestConfidence);
+  ('[DEBUG] Mostrando selector con', allFaces.faces.length, 'caras');
+  ('[DEBUG] Mejor cara (índice):', allFaces.bestFaceIndex);
+  ('[DEBUG] Confianza más alta:', allFaces.highestConfidence);
   
   detectedFaces = allFaces;
   selectedFaceIndex = allFaces.bestFaceIndex || 0;
@@ -509,7 +509,7 @@ async function showFaceSelector(allFaces) {
   const currentGrid = isDniMode ? faceSelectorGridDni : faceSelectorGrid;
   const currentSelector = isDniMode ? faceSelectorDni : faceSelector;
   
-  console.log('[DEBUG] Usando grid:', isDniMode ? 'faceSelectorGridDni' : 'faceSelectorGrid');
+  ('[DEBUG] Usando grid:', isDniMode ? 'faceSelectorGridDni' : 'faceSelectorGrid');
   
   // Limpiar grid anterior
   currentGrid.innerHTML = '';
@@ -540,7 +540,7 @@ async function showFaceSelector(allFaces) {
     option.appendChild(label);
     
     option.addEventListener('click', () => {
-      console.log('[DEBUG] Click en cara', index + 1);
+      ('[DEBUG] Click en cara', index + 1);
       // Remover selección anterior
       document.querySelectorAll('.face-option').forEach(opt => {
         opt.classList.remove('selected');
@@ -551,7 +551,7 @@ async function showFaceSelector(allFaces) {
       selectedFaceIndex = index;
       imageToUpload = face.imageBase64;
       
-      console.log(`[DEBUG] ✓ Cara ${index + 1} seleccionada manualmente (confianza: ${(face.confidence * 100).toFixed(1)}%)`);
+      (`[DEBUG] ✓ Cara ${index + 1} seleccionada manualmente (confianza: ${(face.confidence * 100).toFixed(1)}%)`);
     });
     
     currentGrid.appendChild(option);
@@ -559,14 +559,14 @@ async function showFaceSelector(allFaces) {
   
   // Establecer la mejor cara por defecto
   imageToUpload = allFaces.faces[selectedFaceIndex].imageBase64;
-  console.log('[DEBUG] Imagen por defecto establecida (índice:', selectedFaceIndex, ')');
+  ('[DEBUG] Imagen por defecto establecida (índice:', selectedFaceIndex, ')');
   
   // Mostrar el selector correcto
   currentSelector.classList.remove('hidden');
   faceDetectionError.classList.add('hidden');
   
-  console.log(`[DEBUG] ✓ Selector mostrado con ${allFaces.faces.length} caras`);
-  console.log(`[DEBUG] ⚠️ Selección manual habilitada`);
+  (`[DEBUG] ✓ Selector mostrado con ${allFaces.faces.length} caras`);
+  (`[DEBUG] ⚠️ Selección manual habilitada`);
 }
 
 // Procesar imagen seleccionada
@@ -1387,7 +1387,7 @@ const STORE_NAME = 'folderHandles';
 
 function openDatabase() {
   return new Promise((resolve, reject) => {
-    console.log('[DEBUG] Abriendo IndexedDB...');
+    ('[DEBUG] Abriendo IndexedDB...');
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     
     request.onerror = () => {
@@ -1396,23 +1396,23 @@ function openDatabase() {
     };
     
     request.onsuccess = () => {
-      console.log('[DEBUG] IndexedDB abierta correctamente');
+      ('[DEBUG] IndexedDB abierta correctamente');
       resolve(request.result);
     };
     
     request.onupgradeneeded = (event) => {
-      console.log('[DEBUG] Creando object store...');
+      ('[DEBUG] Creando object store...');
       const db = event.target.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME);
-        console.log('[DEBUG] Object store creado');
+        ('[DEBUG] Object store creado');
       }
     };
   });
 }
 
 async function saveFolderHandle(handle) {
-  console.log('[DEBUG] Guardando folder handle:', handle.name);
+  ('[DEBUG] Guardando folder handle:', handle.name);
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE_NAME, 'readwrite');
@@ -1425,13 +1425,13 @@ async function saveFolderHandle(handle) {
     };
     
     request.onsuccess = () => {
-      console.log('[DEBUG] Handle guardado correctamente en IndexedDB');
+      ('[DEBUG] Handle guardado correctamente en IndexedDB');
       resolve();
     };
     
     transaction.oncomplete = () => {
       db.close();
-      console.log('[DEBUG] Transacción completada');
+      ('[DEBUG] Transacción completada');
     };
     
     transaction.onerror = () => {
@@ -1762,10 +1762,10 @@ let scanFolderHandle = null;
 
 // Cargar el handle guardado al iniciar
 async function initializeFolderHandle() {
-  console.log('[DEBUG] Inicializando folder handle...');
+  ('[DEBUG] Inicializando folder handle...');
   try {
     const savedHandle = await loadFolderHandle();
-    console.log('[DEBUG] Handle cargado:', savedHandle ? savedHandle.name : 'null');
+    ('[DEBUG] Handle cargado:', savedHandle ? savedHandle.name : 'null');
     
     if (savedHandle) {
       scanFolderHandle = savedHandle;
@@ -1776,9 +1776,9 @@ async function initializeFolderHandle() {
         const hasPermission = await verifyPermission(savedHandle);
         if (!hasPermission) {
           scanFolderPath.textContent = `${savedHandle.name} (permiso requerido)`;
-          console.log('[DEBUG] Permiso requerido para:', savedHandle.name);
+          ('[DEBUG] Permiso requerido para:', savedHandle.name);
         } else {
-          console.log('[DEBUG] Permiso OK para:', savedHandle.name);
+          ('[DEBUG] Permiso OK para:', savedHandle.name);
         }
       } catch (error) {
         console.error('[ERROR] Error al verificar permisos:', error);
@@ -1786,7 +1786,7 @@ async function initializeFolderHandle() {
         scanFolderHandle = null;
       }
     } else {
-      console.log('[DEBUG] No hay carpeta guardada');
+      ('[DEBUG] No hay carpeta guardada');
     }
   } catch (error) {
     console.error('[ERROR] Error al cargar folder handle:', error);
@@ -1795,9 +1795,9 @@ async function initializeFolderHandle() {
 }
 
 // Seleccionar carpeta de escaneos
-console.log('[DEBUG] Registrando listener para selectFolderBtn:', selectFolderBtn ? 'OK' : 'NULL');
+('[DEBUG] Registrando listener para selectFolderBtn:', selectFolderBtn ? 'OK' : 'NULL');
 selectFolderBtn.addEventListener('click', async () => {
-  console.log('[DEBUG] ===== BOTÓN SELECCIONAR CARPETA CLICKEADO =====');
+  ('[DEBUG] ===== BOTÓN SELECCIONAR CARPETA CLICKEADO =====');
   
   // Verificar que la API esté disponible
   if (!window.showDirectoryPicker) {
@@ -1806,11 +1806,11 @@ selectFolderBtn.addEventListener('click', async () => {
     return;
   }
   
-  console.log('[DEBUG] showDirectoryPicker disponible, mostrando diálogo...');
+  ('[DEBUG] showDirectoryPicker disponible, mostrando diálogo...');
   
   // SOLUCIÓN: Abrir options.html en una nueva pestaña para evitar que el popup se cierre
   // y cancele el diálogo
-  console.log('[DEBUG] Abriendo página de configuración en nueva pestaña...');
+  ('[DEBUG] Abriendo página de configuración en nueva pestaña...');
   chrome.tabs.create({ url: chrome.runtime.getURL('options.html') });
   
   /* CÓDIGO ORIGINAL COMENTADO - No funciona en popup porque se cierra
@@ -1820,12 +1820,12 @@ selectFolderBtn.addEventListener('click', async () => {
       mode: 'read'
     });
     
-    console.log('[DEBUG] Carpeta seleccionada:', scanFolderHandle.name);
+    ('[DEBUG] Carpeta seleccionada:', scanFolderHandle.name);
     
     // Guardar el handle en IndexedDB
     try {
       await saveFolderHandle(scanFolderHandle);
-      console.log('[DEBUG] Handle guardado en IndexedDB');
+      ('[DEBUG] Handle guardado en IndexedDB');
     } catch (dbError) {
       console.error('[ERROR] No se pudo guardar en IndexedDB:', dbError);
       showFolderStatus(`Error al guardar: ${dbError.message}`, 'error');
@@ -1837,7 +1837,7 @@ selectFolderBtn.addEventListener('click', async () => {
     scanFolderPath.textContent = folderName;
     await chrome.storage.local.set({ scanFolderName: folderName });
     
-    console.log('[DEBUG] Carpeta configurada correctamente:', folderName);
+    ('[DEBUG] Carpeta configurada correctamente:', folderName);
     showFolderStatus('Carpeta configurada ✓', 'success');
   } catch (error) {
     console.error('[ERROR] Error capturado:', error);
@@ -1847,35 +1847,35 @@ selectFolderBtn.addEventListener('click', async () => {
     if (error.name !== 'AbortError') {
       showFolderStatus(`Error: ${error.message}`, 'error');
     } else {
-      console.log('[DEBUG] Usuario canceló la selección');
+      ('[DEBUG] Usuario canceló la selección');
     }
   }
   
-  console.log('[DEBUG] ===== FIN PROCESO SELECCIÓN =====');
+  ('[DEBUG] ===== FIN PROCESO SELECCIÓN =====');
   */
 });
 
 // Botón de prueba para diagnosticar problemas con la carpeta
 testFolderBtn.addEventListener('click', async () => {
-  console.log('=== DIAGNÓSTICO DE CARPETA ===');
+  ('=== DIAGNÓSTICO DE CARPETA ===');
   
   try {
     // 1. Verificar si hay handle en memoria
-    console.log('1. Handle en memoria:', scanFolderHandle ? scanFolderHandle.name : 'null');
+    ('1. Handle en memoria:', scanFolderHandle ? scanFolderHandle.name : 'null');
     
     // 2. Intentar cargar de IndexedDB
     const loadedHandle = await loadFolderHandle();
-    console.log('2. Handle en IndexedDB:', loadedHandle ? loadedHandle.name : 'null');
+    ('2. Handle en IndexedDB:', loadedHandle ? loadedHandle.name : 'null');
     
     // 3. Verificar chrome.storage
     const stored = await chrome.storage.local.get(['scanFolderName']);
-    console.log('3. Nombre en chrome.storage:', stored.scanFolderName || 'null');
+    ('3. Nombre en chrome.storage:', stored.scanFolderName || 'null');
     
     // 4. Si hay handle, verificar permiso
     if (loadedHandle) {
       try {
         const hasPermission = await verifyPermission(loadedHandle);
-        console.log('4. Tiene permiso:', hasPermission);
+        ('4. Tiene permiso:', hasPermission);
         
         if (hasPermission) {
           // Intentar listar archivos
@@ -1884,7 +1884,7 @@ testFolderBtn.addEventListener('click', async () => {
             fileCount++;
             if (fileCount > 5) break; // Solo contar primeros 5
           }
-          console.log('5. Archivos encontrados:', fileCount > 5 ? '5+' : fileCount);
+          ('5. Archivos encontrados:', fileCount > 5 ? '5+' : fileCount);
           showFolderStatus(`✓ Carpeta OK: ${loadedHandle.name} (${fileCount > 5 ? '5+' : fileCount} archivos)`, 'success');
         } else {
           showFolderStatus('⚠️ Carpeta sin permisos. Vuelve a seleccionarla.', 'error');
@@ -1897,7 +1897,7 @@ testFolderBtn.addEventListener('click', async () => {
       showFolderStatus('❌ No hay carpeta guardada', 'error');
     }
     
-    console.log('=== FIN DIAGNÓSTICO ===');
+    ('=== FIN DIAGNÓSTICO ===');
   } catch (error) {
     console.error('Error en diagnóstico:', error);
     showFolderStatus(`Error: ${error.message}`, 'error');

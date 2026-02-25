@@ -25,7 +25,7 @@ class FaceDetector {
       // Cargar solo el modelo TinyFaceDetector (es más rápido y suficiente para documentos)
       await faceapi.nets.tinyFaceDetector.loadFromUri(this.modelsPath);
       this.modelsLoaded = true;
-      console.log('✓ Modelos de detección facial cargados');
+      ('✓ Modelos de detección facial cargados');
     } catch (error) {
       console.error('Error cargando modelos:', error);
       throw new Error('No se pudieron cargar los modelos de detección facial');
@@ -46,15 +46,15 @@ class FaceDetector {
       returnAllFaces = false // Si es true, retorna todas las caras detectadas
     } = options;
 
-    console.log('[FACE-DETECTOR] extractFaceFromDocument - Iniciando');
-    console.log('[FACE-DETECTOR] Opciones:', { padding, minConfidence, targetSize, returnAllFaces });
+    ('[FACE-DETECTOR] extractFaceFromDocument - Iniciando');
+    ('[FACE-DETECTOR] Opciones:', { padding, minConfidence, targetSize, returnAllFaces });
 
     // Asegurar que los modelos estén cargados
     await this.loadModels();
 
     // Crear elemento de imagen para procesar
     const img = await this._loadImage(imageSource);
-    console.log('[FACE-DETECTOR] Imagen cargada:', img.width, 'x', img.height);
+    ('[FACE-DETECTOR] Imagen cargada:', img.width, 'x', img.height);
 
     // Detectar caras en la imagen con configuración mejorada
     const detections = await faceapi.detectAllFaces(
@@ -65,7 +65,7 @@ class FaceDetector {
       })
     );
 
-    console.log('[FACE-DETECTOR] Detecciones brutas:', detections?.length || 0);
+    ('[FACE-DETECTOR] Detecciones brutas:', detections?.length || 0);
 
     if (!detections || detections.length === 0) {
       console.error('[FACE-DETECTOR] No se detectó ninguna cara');
@@ -81,12 +81,12 @@ class FaceDetector {
       return relativeArea > 0.02 && d.score >= 0.3;
     });
 
-    console.log('[FACE-DETECTOR] Detecciones válidas (>2% área):', validDetections.length);
+    ('[FACE-DETECTOR] Detecciones válidas (>2% área):', validDetections.length);
     validDetections.forEach((d, i) => {
       const area = d.box.width * d.box.height;
       const imageArea = img.width * img.height;
       const relativeArea = (area / imageArea * 100).toFixed(2);
-      console.log(`[FACE-DETECTOR]   Cara ${i + 1}: ${(d.score * 100).toFixed(1)}% confianza, ${relativeArea}% del área`);
+      (`[FACE-DETECTOR]   Cara ${i + 1}: ${(d.score * 100).toFixed(1)}% confianza, ${relativeArea}% del área`);
     });
 
     // Flag para indicar si usamos umbral relajado
@@ -104,12 +104,12 @@ class FaceDetector {
         return relativeArea > 0.005 && d.score >= 0.2; // 0.5% área, 20% confianza mínima
       });
       
-      console.log('[FACE-DETECTOR] Detecciones con umbral relajado (>0.5% área):', relaxedDetections.length);
+      ('[FACE-DETECTOR] Detecciones con umbral relajado (>0.5% área):', relaxedDetections.length);
       relaxedDetections.forEach((d, i) => {
         const area = d.box.width * d.box.height;
         const imageArea = img.width * img.height;
         const relativeArea = (area / imageArea * 100).toFixed(2);
-        console.log(`[FACE-DETECTOR]   Cara ${i + 1}: ${(d.score * 100).toFixed(1)}% confianza, ${relativeArea}% del área`);
+        (`[FACE-DETECTOR]   Cara ${i + 1}: ${(d.score * 100).toFixed(1)}% confianza, ${relativeArea}% del área`);
       });
       
       if (relaxedDetections.length === 0) {
@@ -121,12 +121,12 @@ class FaceDetector {
       validDetections.length = 0;
       validDetections.push(...relaxedDetections);
       usedRelaxedThreshold = true;
-      console.log('[FACE-DETECTOR] ✓ Usando detecciones con umbral relajado - FORZANDO selección manual');
+      ('[FACE-DETECTOR] ✓ Usando detecciones con umbral relajado - FORZANDO selección manual');
     }
 
     // Si se solicitan todas las caras, retornar array completo
     if (returnAllFaces) {
-      console.log('[FACE-DETECTOR] Modo returnAllFaces activado');
+      ('[FACE-DETECTOR] Modo returnAllFaces activado');
       
       // Ordenar por confianza (más alta primero) para mejor selección por defecto
       const sortedDetections = [...validDetections].sort((a, b) => {
@@ -148,8 +148,8 @@ class FaceDetector {
       const hasHighConfidenceFace = sortedDetections.some(d => d.score >= minConfidence);
       const needsManualSelection = !hasHighConfidenceFace;
       
-      console.log('[FACE-DETECTOR] needsManualSelection:', needsManualSelection);
-      console.log('[FACE-DETECTOR] Razón:', {
+      ('[FACE-DETECTOR] needsManualSelection:', needsManualSelection);
+      ('[FACE-DETECTOR] Razón:', {
         hasHighConfidenceFace: hasHighConfidenceFace,
         highestScore: sortedDetections[0].score,
         minRequired: minConfidence,
@@ -172,9 +172,9 @@ class FaceDetector {
     
     const face = sortedDetections[0];
     
-    console.log('[FACE-DETECTOR] Mejor cara seleccionada:');
-    console.log('[FACE-DETECTOR]   Confianza:', (face.score * 100).toFixed(1) + '%');
-    console.log('[FACE-DETECTOR]   Posición:', face.box);
+    ('[FACE-DETECTOR] Mejor cara seleccionada:');
+    ('[FACE-DETECTOR]   Confianza:', (face.score * 100).toFixed(1) + '%');
+    ('[FACE-DETECTOR]   Posición:', face.box);
 
     // Recortar la cara con el padding especificado
     const croppedCanvas = this._cropFaceWithPadding(img, face.box, padding);
@@ -189,11 +189,11 @@ class FaceDetector {
     const hasHighConfidenceFace = sortedDetections.some(d => d.score >= minConfidence);
     const needsManualSelection = !hasHighConfidenceFace;
     
-    console.log('[FACE-DETECTOR] Resultado final:');
-    console.log('[FACE-DETECTOR]   needsManualSelection:', needsManualSelection);
-    console.log('[FACE-DETECTOR]   hasHighConfidenceFace:', hasHighConfidenceFace);
-    console.log('[FACE-DETECTOR]   totalFaces:', sortedDetections.length);
-    console.log('[FACE-DETECTOR]   confidence:', face.score);
+    ('[FACE-DETECTOR] Resultado final:');
+    ('[FACE-DETECTOR]   needsManualSelection:', needsManualSelection);
+    ('[FACE-DETECTOR]   hasHighConfidenceFace:', hasHighConfidenceFace);
+    ('[FACE-DETECTOR]   totalFaces:', sortedDetections.length);
+    ('[FACE-DETECTOR]   confidence:', face.score);
     
     return {
       needsManualSelection,

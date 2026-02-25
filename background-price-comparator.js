@@ -1,7 +1,7 @@
 // Background service worker para obtener precios de Booking.com
 // Este script se ejecuta en segundo plano y maneja las peticiones de scraping
 
-console.log('Price Comparator Background Worker iniciado');
+('Price Comparator Background Worker iniciado');
 
 // Escuchar mensajes desde el content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -159,7 +159,7 @@ function parseBookingPrices(html) {
 			prices.threePax = `€${Math.min(...pricesByOccupancy[3])}`;
 		}
 		
-		console.log('Precios parseados:', prices);
+		('Precios parseados:', prices);
 		
 	} catch (error) {
 		console.error('Error parseando precios:', error);

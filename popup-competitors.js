@@ -84,7 +84,7 @@ async function saveCompetitors() {
   });
   
   await chrome.storage.sync.set({ competitors });
-  console.log('Competidores guardados:', competitors);
+  ('Competidores guardados:', competitors);
 }
 
 async function removeCompetitor(index) {

@@ -12,18 +12,18 @@ class PriceComparator {
 	async init() {
 		// Solo inicializar si estamos en CloudBeds
 		if (!window.location.href.includes('cloudbeds.com')) {
-			console.log('Price Comparator: No estamos en CloudBeds');
+			('Price Comparator: No estamos en CloudBeds');
 			return;
 		}
 		
 		// Verificar si la funcionalidad está habilitada
 		const enabled = await this.isEnabled();
 		if (!enabled) {
-			console.log('Price Comparator: Funcionalidad desactivada');
+			('Price Comparator: Funcionalidad desactivada');
 			return;
 		}
 		
-		console.log('Price Comparator: Inicializando...');
+		('Price Comparator: Inicializando...');
 		await this.loadCompetitors();
 		
 		// Crear elementos siempre, pero mostrar/ocultar según la página
@@ -86,7 +86,7 @@ class PriceComparator {
 		if (this.isCalendarPage()) {
 			// Mostrar el botón si estamos en el calendario
 			button.style.display = 'flex';
-			console.log('Price Comparator: Mostrando botón en calendario');
+			('Price Comparator: Mostrando botón en calendario');
 		} else {
 			// Ocultar el botón si no estamos en el calendario
 			button.style.display = 'none';
@@ -94,7 +94,7 @@ class PriceComparator {
 			if (this.isOpen) {
 				this.togglePanel();
 			}
-			console.log('Price Comparator: Ocultando botón fuera del calendario');
+			('Price Comparator: Ocultando botón fuera del calendario');
 		}
 	}
 
@@ -126,7 +126,7 @@ class PriceComparator {
 		const panel = document.getElementById('price-comparator-panel');
 		if (button) button.remove();
 		if (panel) panel.remove();
-		console.log('Price Comparator: Elementos eliminados');
+		('Price Comparator: Elementos eliminados');
 	}
 
 	async loadCompetitors() {
@@ -134,11 +134,11 @@ class PriceComparator {
 			chrome.storage.sync.get(['competitors'], (result) => {
 				if (result.competitors && result.competitors.length > 0) {
 					this.competitors = result.competitors;
-					console.log('Competidores cargados:', this.competitors);
+					('Competidores cargados:', this.competitors);
 				} else {
 					// Sin competidores por defecto
 					this.competitors = [];
-					console.log('No hay competidores configurados');
+					('No hay competidores configurados');
 				}
 				resolve();
 			});
@@ -482,7 +482,7 @@ class PriceComparator {
 			// Buscar el área de ese tipo de habitación
 			const rtArea = document.querySelector(`.c-rt-area[data-rt-id="${roomId}"]`);
 			if (!rtArea) {
-				console.log(`No se encontró c-rt-area para ${type} (${roomId})`);
+				(`No se encontró c-rt-area para ${type} (${roomId})`);
 				continue;
 			}
 
@@ -493,14 +493,14 @@ class PriceComparator {
 			}
 
 			if (!rtDays) {
-				console.log(`No se encontró c-rt-days para ${type}`);
+				(`No se encontró c-rt-days para ${type}`);
 				continue;
 			}
 
 			// Buscar el día específico
 			const dayCell = rtDays.querySelector(`.c-rt-day[data-date="${date}"]`);
 			if (!dayCell) {
-				console.log(`No se encontró día ${date} para ${type}`);
+				(`No se encontró día ${date} para ${type}`);
 				continue;
 			}
 
@@ -510,7 +510,7 @@ class PriceComparator {
 				let priceText = priceElement.textContent.trim();
 				// Eliminar decimales: convertir €38,00 a €38 y cambiar formato a 38€
 				priceText = priceText.replace(/,(\d+)/, '').replace(/€\s*(\d+)/, '$1€');
-				console.log(`Precio encontrado para ${type}: ${priceText}`);
+				(`Precio encontrado para ${type}: ${priceText}`);
 				
 				if (type === 'individual') {
 					prices.onePax = priceText;
@@ -520,11 +520,11 @@ class PriceComparator {
 					prices.threePax = priceText;
 				}
 			} else {
-				console.log(`No se encontró precio para ${type}`);
+				(`No se encontró precio para ${type}`);
 			}
 		}
 
-		console.log('Precios extraídos:', prices);
+		('Precios extraídos:', prices);
 		return prices;
 	}
 
@@ -551,7 +551,7 @@ class PriceComparator {
 			}
 		});
 
-		console.log('IDs de tipos de habitación extraídos:', roomTypeIds);
+		('IDs de tipos de habitación extraídos:', roomTypeIds);
 		return roomTypeIds;
 	}
 
@@ -631,7 +631,7 @@ class PriceComparator {
 		// Limitar a las 3 habitaciones más baratas
 		const limitedRoomTypes = roomTypes.slice(0, 3);
 		
-		console.log(`Tipos de habitación extraídos para ${nights} noche(s) (ordenados por precio, máximo 3):`, limitedRoomTypes);
+		(`Tipos de habitación extraídos para ${nights} noche(s) (ordenados por precio, máximo 3):`, limitedRoomTypes);
 		return limitedRoomTypes;
 	}
 
