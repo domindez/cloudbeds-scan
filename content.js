@@ -547,10 +547,46 @@ async function doFillForm(data) {
       enableDocumentFields();
     }, 300);
   }
+
+  // Email: si está vacío en Cloudbeds, usar valor por defecto
+  if (ensureGuestEmailDefault()) {
+    filledCount++;
+  }
   
   // showNotification(`✓ ${filledCount} campos rellenados correctamente`);
   
   return filledCount;
+}
+
+function ensureGuestEmailDefault() {
+  const emailInput = document.querySelector(
+    'input[name="guest_email"], input[data-hook="folio-guest-email"], input.guest-save-field.email'
+  );
+
+  if (!emailInput) {
+    return false;
+  }
+
+  const currentValue = (emailInput.value || '').trim();
+  if (currentValue) {
+    return false;
+  }
+
+  if (emailInput.disabled || emailInput.readOnly) {
+    emailInput.disabled = false;
+    emailInput.readOnly = false;
+    emailInput.classList.remove('disabled', 'readonly');
+  }
+
+  const defaultEmail = 'no@mail.com';
+  setInputValue(emailInput, defaultEmail);
+
+  const staticEmailDiv = document.querySelector('[data-hook="guest-email-text-value"]');
+  if (staticEmailDiv) {
+    staticEmailDiv.innerHTML = `<a href="mailto:${defaultEmail}">${defaultEmail}</a>`;
+  }
+
+  return true;
 }
 
 // Función especial para rellenar fecha de nacimiento (Cloudbeds tiene 2 inputs)
