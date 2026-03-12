@@ -817,9 +817,7 @@ async function fillMunicipalityField(city, province) {
 
 // Busca en el array de countries.js el país que más se parezca
 async function fillNationalityField(nationality) {
-  
-  // Verificar que tenemos el array de países
-  if (typeof countries === 'undefined' || !Array.isArray(countries)) {
+  if (!nationality) {
     return false;
   }
   
@@ -840,58 +838,124 @@ async function fillNationalityField(nationality) {
       .replace(/[\u0300-\u036f]/g, '')
       .trim();
   };
-  
-  const nationalityNormalized = normalizeText(nationality);
-  
-  // Primero buscar en los alias (traducciones español -> inglés, gentilicios, etc.)
-  if (typeof countryAliases !== 'undefined') {
-    const aliasMatch = countryAliases[nationalityNormalized];
-    if (aliasMatch) {
-      return setNationalityValue(nationalityInput, aliasMatch);
+
+  const sourceNormalized = normalizeText(nationality);
+  const sourceInfo = getCountryInfo(nationality);
+
+  // Priorizar SIEMPRE las opciones reales del dataset del campo de nacionalidad.
+  // Así usamos exactamente el idioma/valor esperado por Cloudbeds (p. ej. "Alemania").
+  const inputOptions = getNationalityInputOptions(nationalityInput);
+
+  if (inputOptions.length > 0) {
+    const bestOption = findBestNationalityOption(inputOptions, sourceInfo, sourceNormalized, normalizeText);
+    if (bestOption) {
+      return setNationalityValue(nationalityInput, bestOption);
     }
+
+    // Cloudbeds a veces expone solo un subconjunto (p. ej. 10 opciones).
+    // Si no hay match en ese subset, usar el valor español canonizado.
+    if (sourceInfo?.name) {
+      const preferredNationalityLabel = getPreferredNationalityLabel(sourceInfo);
+      return setNationalityValue(nationalityInput, preferredNationalityLabel);
+    }
+
+    return false;
   }
-  
-  // Buscar coincidencia directa o parcial en la lista de países
-  let bestMatch = null;
-  let bestScore = 0;
-  
-  for (const country of countries) {
-    const countryNormalized = normalizeText(country);
-    
-    let score = 0;
-    
-    // Coincidencia exacta
-    if (countryNormalized === nationalityNormalized) {
-      score = 100;
-    }
-    // El país contiene la nacionalidad buscada
-    else if (countryNormalized.includes(nationalityNormalized)) {
-      score = 80;
-    }
-    // La nacionalidad contiene el nombre del país
-    else if (nationalityNormalized.includes(countryNormalized)) {
-      score = 70;
-    }
-    // Similitud parcial (primeras letras)
-    else if (countryNormalized.startsWith(nationalityNormalized.substring(0, 4))) {
-      score = 50;
-    }
-    // Coincidencia de primeras 3 letras
-    else if (countryNormalized.substring(0, 3) === nationalityNormalized.substring(0, 3)) {
-      score = 30;
-    }
-    
-    if (score > bestScore) {
-      bestScore = score;
-      bestMatch = country;
-    }
-  }
-  
-  if (bestMatch && bestScore >= 50) {
-    return setNationalityValue(nationalityInput, bestMatch);
+
+  // Fallback: si por alguna razón no hay data-source, usar el catálogo español interno.
+  if (sourceInfo?.name) {
+    const preferredNationalityLabel = getPreferredNationalityLabel(sourceInfo);
+    return setNationalityValue(nationalityInput, preferredNationalityLabel);
   }
   
   return false;
+}
+
+function findBestNationalityOption(options, sourceInfo, sourceNormalized, normalizeFn) {
+  let bestOption = null;
+  let bestScore = 0;
+
+  for (const option of options) {
+    const optionNormalized = normalizeFn(option);
+    const optionInfo = getCountryInfo(option);
+    let score = 0;
+
+    // Match más fiable: mismo código ISO entre origen y opción del dataset.
+    if (sourceInfo && optionInfo && sourceInfo.code === optionInfo.code) {
+      score = 300;
+    } else if (optionNormalized === sourceNormalized) {
+      score = 220;
+    } else if (optionNormalized.includes(sourceNormalized)) {
+      score = 150;
+    } else if (sourceNormalized.includes(optionNormalized)) {
+      score = 130;
+    } else if (sourceNormalized.length >= 4 && optionNormalized.startsWith(sourceNormalized.substring(0, 4))) {
+      score = 90;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestOption = option;
+    }
+  }
+
+  return bestScore >= 130 ? bestOption : null;
+}
+
+function getPreferredNationalityLabel(countryInfo) {
+  if (!countryInfo?.code) {
+    return countryInfo?.name || '';
+  }
+
+  // Algunos datasets de Cloudbeds usan nombres largos oficiales en español.
+  // Si detectas otro país que no coincide, añade aquí su código ISO y su nombre exacto del dropdown.
+  const longSpanishLabelsByCode = {
+    GB: 'Reino Unido de Gran Bretaña e Irlanda del Norte',
+    TZ: 'República Unida de Tanzania',
+    KR: 'República de Corea',
+    MD: 'República de Moldavia',
+    SY: 'República Árabe de Siria',
+    IR: 'República Islámica de Irán',
+    VE: 'República Bolivariana de Venezuela',
+    LA: 'República Democrática Popular Lao'
+  };
+
+  return longSpanishLabelsByCode[countryInfo.code] || countryInfo.name;
+}
+
+function getNationalityInputOptions(input) {
+  const source = input.getAttribute('data-source');
+  if (!source) {
+    return [];
+  }
+
+  const parseSourceList = (rawSource) => {
+    const parsed = JSON.parse(rawSource);
+    return Array.isArray(parsed)
+      ? parsed.filter(item => typeof item === 'string' && item.trim().length > 0)
+      : [];
+  };
+
+  try {
+    return parseSourceList(source);
+  } catch (error) {
+  }
+
+  try {
+    const decodedSource = decodeHtmlEntities(source);
+    if (decodedSource && decodedSource !== source) {
+      return parseSourceList(decodedSource);
+    }
+  } catch (error) {
+  }
+
+  return [];
+}
+
+function decodeHtmlEntities(value) {
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = value;
+  return textarea.value;
 }
 
 // Establecer el valor en el campo de nacionalidad
@@ -935,7 +999,7 @@ function setNationalityValue(input, value) {
         return true;
       }
     }
-    
+
     // Método 2: Simular interacción del usuario
     // Focus en el input
     input.focus();
