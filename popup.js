@@ -759,8 +759,13 @@ scanBtn.addEventListener('click', async () => {
       fillFormPromise,
       photoUploadPromise
     ]);
-    
-    updateStep(3, 'completed', 'Rellenando formulario', `${fillResult.filledCount || ''} campos completados${photoUploadResult?.photoUploaded ? ' + foto' : ''} ✓`);
+
+    const baseStep3Message = `${fillResult.filledCount || 0} campos completados${photoUploadResult?.photoUploaded ? ' + foto' : ''} ✓`;
+    const nonGratoWarning = fillResult.nonGratoMatch
+      ? ` · ⚠️ NON GRATO: ${fillResult.nonGratoMatch.motivo} (${formatNonGratoDate(fillResult.nonGratoMatch.fechaIncidencia)})`
+      : '';
+
+    updateStep(3, 'completed', 'Rellenando formulario', `${baseStep3Message}${nonGratoWarning}`);
     
     // Mostrar botones finales
     showProgressResult('success');
@@ -829,7 +834,8 @@ async function fillCloudbedsForm(data, skipPhotoWait = false) {
       return {
         success: true,
         filledCount: response.filledCount || 0,
-        photoUploaded: response.photoUploaded || false
+        photoUploaded: response.photoUploaded || false,
+        nonGratoMatch: response.nonGratoMatch || null
       };
     } else {
       throw new Error(response?.error || 'Error al rellenar el formulario');
@@ -837,6 +843,19 @@ async function fillCloudbedsForm(data, skipPhotoWait = false) {
   } catch (error) {
     throw error;
   }
+}
+
+function formatNonGratoDate(dateValue) {
+  if (!dateValue) {
+    return 'sin fecha';
+  }
+
+  const parsed = new Date(dateValue);
+  if (Number.isNaN(parsed.getTime())) {
+    return dateValue;
+  }
+
+  return parsed.toLocaleDateString('es-ES');
 }
 
 // 🚀 OPTIMIZACIÓN: Iniciar subida de foto en paralelo (sin esperar relleno)

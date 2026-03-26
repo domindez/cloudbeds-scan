@@ -2,6 +2,10 @@
 
 const CARD_SIGNATURE_BUTTON_ID = 'cloudbeds-card-signature-btn';
 const CARD_SIGNATURE_BUTTON_CLASS = 'cloudbeds-card-signature-btn';
+const NON_GRATOS_STORAGE_KEY = 'nonGratos';
+const NON_GRATOS_FLOATING_BUTTON_ID = 'cloudbeds-non-gratos-floating-btn';
+const NON_GRATOS_DIALOG_OVERLAY_ID = 'cloudbeds-non-gratos-dialog-overlay';
+const NON_GRATOS_WARNING_OVERLAY_ID = 'cloudbeds-non-gratos-warning-overlay';
 
 const CONSENT_DOCUMENT_I18N = {
   es: {
@@ -132,6 +136,11 @@ const CONSENT_DOCUMENT_I18N = {
 
 let creditCardSignatureObserver = null;
 let creditCardSignatureRefreshTimer = null;
+let nonGratosObserver = null;
+let nonGratosRefreshTimer = null;
+let nonGratosPositionTimer = null;
+let nonGratosUrlCheckTimer = null;
+let nonGratosLastUrl = window.location.href;
 
 // Inicializar el comparador de precios cuando el DOM esté listo
 // El código de PriceComparator se carga automáticamente desde price-comparator.js (content_script)
@@ -141,6 +150,7 @@ if (document.readyState === 'loading') {
       new PriceComparator();
     }
     initCreditCardSignatureGenerator();
+    initNonGratosFeature();
   });
 } else {
   // Si el DOM ya está listo, inicializar inmediatamente
@@ -148,6 +158,7 @@ if (document.readyState === 'loading') {
     new PriceComparator();
   }
   initCreditCardSignatureGenerator();
+  initNonGratosFeature();
 }
 
 // Escuchar mensajes del popup
@@ -248,6 +259,12 @@ async function fillGuestForm(data, imageToUpload) {
     
     // Rellenar los campos
     const filledCount = await doFillForm(data);
+
+    // Verificación de Non Gratos tras rellenar el formulario
+    const nonGratoMatch = await findNonGratoMatchFromGuestData(data);
+    if (nonGratoMatch) {
+      showNonGratoWarningDialog(nonGratoMatch);
+    }
     
     // Subir la imagen del documento si está disponible
     let photoUploaded = false;
@@ -259,11 +276,551 @@ async function fillGuestForm(data, imageToUpload) {
       }
     }
     
-    return { success: true, filledCount, photoUploaded };
+    return {
+      success: true,
+      filledCount,
+      photoUploaded,
+      nonGratoMatch: nonGratoMatch
+        ? {
+            id: nonGratoMatch.id,
+            nombre: nonGratoMatch.nombre,
+            dni: nonGratoMatch.dni,
+            motivo: nonGratoMatch.motivo,
+            fechaIncidencia: nonGratoMatch.fechaIncidencia
+          }
+        : null
+    };
   }
   
   // Si no hay datos ni imagen, retornar éxito sin hacer nada
   return { success: true, filledCount: 0, photoUploaded: false };
+}
+
+function initNonGratosFeature() {
+  ensureNonGratosFloatingButton();
+  updateNonGratosButtonPosition();
+  updateNonGratosButtonVisibility();
+
+  if (nonGratosObserver) {
+    return;
+  }
+
+  nonGratosObserver = new MutationObserver(() => {
+    if (nonGratosRefreshTimer) {
+      clearTimeout(nonGratosRefreshTimer);
+    }
+    if (nonGratosPositionTimer) {
+      clearTimeout(nonGratosPositionTimer);
+    }
+
+    nonGratosRefreshTimer = setTimeout(() => {
+      ensureNonGratosFloatingButton();
+      updateNonGratosButtonPosition();
+      updateNonGratosButtonVisibility();
+    }, 250);
+
+    nonGratosPositionTimer = setTimeout(() => {
+      updateNonGratosButtonPosition();
+    }, 260);
+  });
+
+  nonGratosObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['style', 'class']
+  });
+
+  window.addEventListener('resize', updateNonGratosButtonPosition);
+  window.addEventListener('popstate', handleNonGratosUrlChange);
+
+  if (!nonGratosUrlCheckTimer) {
+    nonGratosUrlCheckTimer = setInterval(handleNonGratosUrlChange, 500);
+  }
+}
+
+function isCalendarPageForNonGratos() {
+  const url = window.location.href;
+  return url.includes('cloudbeds.com') && url.includes('/calendar');
+}
+
+function handleNonGratosUrlChange() {
+  const currentUrl = window.location.href;
+  if (currentUrl === nonGratosLastUrl) {
+    return;
+  }
+
+  nonGratosLastUrl = currentUrl;
+  updateNonGratosButtonVisibility();
+  updateNonGratosButtonPosition();
+}
+
+function updateNonGratosButtonVisibility() {
+  const button = document.getElementById(NON_GRATOS_FLOATING_BUTTON_ID);
+  if (!button) {
+    return;
+  }
+
+  const shouldShow = isCalendarPageForNonGratos();
+  button.style.display = shouldShow ? 'flex' : 'none';
+
+  if (!shouldShow) {
+    const dialog = document.getElementById(NON_GRATOS_DIALOG_OVERLAY_ID);
+    if (dialog) {
+      dialog.remove();
+    }
+  }
+}
+
+function ensureNonGratosFloatingButton() {
+  if (!document.body) {
+    return;
+  }
+
+  const existingButton = document.getElementById(NON_GRATOS_FLOATING_BUTTON_ID);
+  if (existingButton) {
+    return;
+  }
+
+  const button = document.createElement('button');
+  button.id = NON_GRATOS_FLOATING_BUTTON_ID;
+  button.type = 'button';
+  button.className = 'cloudbeds-non-gratos-floating-btn';
+  button.textContent = 'Non Gratos';
+  button.title = 'Gestionar huespedes non gratos';
+  button.style.visibility = 'hidden';
+  button.addEventListener('click', openNonGratosDialog);
+
+  document.body.appendChild(button);
+  updateNonGratosButtonPosition();
+}
+
+function updateNonGratosButtonPosition() {
+  const button = document.getElementById(NON_GRATOS_FLOATING_BUTTON_ID);
+  if (!button) {
+    return;
+  }
+
+  const comparatorBtn = document.getElementById('price-comparator-btn');
+  if (!comparatorBtn || window.getComputedStyle(comparatorBtn).display === 'none') {
+    button.style.right = isCalendarPageForNonGratos() ? '260px' : '20px';
+    button.style.visibility = 'visible';
+    return;
+  }
+
+  const comparatorWidth = comparatorBtn.getBoundingClientRect().width || 190;
+  const horizontalGap = 12;
+  const baseRight = 20;
+  button.style.right = `${Math.round(baseRight + comparatorWidth + horizontalGap)}px`;
+  button.style.visibility = 'visible';
+}
+
+async function getNonGratos() {
+  const stored = await chrome.storage.local.get([NON_GRATOS_STORAGE_KEY]);
+  return Array.isArray(stored[NON_GRATOS_STORAGE_KEY]) ? stored[NON_GRATOS_STORAGE_KEY] : [];
+}
+
+async function saveNonGratos(nonGratos) {
+  await chrome.storage.local.set({ [NON_GRATOS_STORAGE_KEY]: nonGratos });
+}
+
+function createNonGratoId() {
+  return `ng-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function normalizeName(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase();
+}
+
+function normalizeDni(value) {
+  return String(value || '')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .trim()
+    .toUpperCase();
+}
+
+function formatNonGratoDate(dateValue) {
+  if (!dateValue) {
+    return 'Sin fecha';
+  }
+
+  const parsed = new Date(dateValue);
+  if (Number.isNaN(parsed.getTime())) {
+    return dateValue;
+  }
+
+  return parsed.toLocaleDateString('es-ES');
+}
+
+function showNonGratoWarningDialog(nonGratoMatch) {
+  const existing = document.getElementById(NON_GRATOS_WARNING_OVERLAY_ID);
+  if (existing) {
+    existing.remove();
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = NON_GRATOS_WARNING_OVERLAY_ID;
+  overlay.className = 'cloudbeds-non-gratos-warning-overlay';
+
+  const dialog = document.createElement('div');
+  dialog.className = 'cloudbeds-non-gratos-warning-dialog';
+  dialog.innerHTML = `
+    <div class="cloudbeds-non-gratos-warning-head">
+      <div class="cloudbeds-non-gratos-warning-icon" aria-hidden="true">⚠️</div>
+      <div>
+        <h3>Huesped NON GRATO detectado</h3>
+        <p>Este huesped tiene una incidencia registrada.</p>
+      </div>
+    </div>
+    <div class="cloudbeds-non-gratos-warning-body">
+      <div class="warning-row"><span>Nombre</span><strong>${escapeHtml(nonGratoMatch.nombre || '-')}</strong></div>
+      <div class="warning-row"><span>DNI/NIE</span><strong>${escapeHtml(nonGratoMatch.dni || '-')}</strong></div>
+      <div class="warning-row"><span>Fecha incidencia</span><strong>${escapeHtml(formatNonGratoDate(nonGratoMatch.fechaIncidencia))}</strong></div>
+      <div class="warning-reason">
+        <span>Motivo</span>
+        <p>${escapeHtml(nonGratoMatch.motivo || 'Sin motivo')}</p>
+      </div>
+    </div>
+    <div class="cloudbeds-non-gratos-warning-actions">
+      <button type="button" class="cloudbeds-non-gratos-warning-close">Cerrar advertencia</button>
+    </div>
+  `;
+
+  const closeBtn = dialog.querySelector('.cloudbeds-non-gratos-warning-close');
+  closeBtn.addEventListener('click', () => {
+    overlay.remove();
+  });
+
+  overlay.appendChild(dialog);
+  document.body.appendChild(overlay);
+}
+
+function findNonGratoMatchInList(guestData, nonGratos) {
+  const guestDni = normalizeDni(guestData.documentNumber || guestData.taxId || '');
+  const guestName = normalizeName(`${guestData.firstName || ''} ${guestData.lastName || ''} ${guestData.lastName2 || ''}`);
+
+  if (guestDni) {
+    const matchByDni = nonGratos.find(item => normalizeDni(item.dni) === guestDni);
+    if (matchByDni) {
+      return matchByDni;
+    }
+  }
+
+  if (guestName) {
+    const matchByName = nonGratos.find(item => normalizeName(item.nombre) === guestName);
+    if (matchByName) {
+      return matchByName;
+    }
+  }
+
+  return null;
+}
+
+async function findNonGratoMatchFromGuestData(guestData) {
+  if (!guestData || typeof guestData !== 'object') {
+    return null;
+  }
+
+  const nonGratos = await getNonGratos();
+  return findNonGratoMatchInList(guestData, nonGratos);
+}
+
+function showNonGratoDialogMessage(messageEl, text, type) {
+  messageEl.textContent = text;
+  messageEl.className = `cloudbeds-non-gratos-message ${type}`;
+}
+
+function clearNonGratoDialogMessage(messageEl) {
+  messageEl.textContent = '';
+  messageEl.className = 'cloudbeds-non-gratos-message';
+}
+
+function resetNonGratoForm(formEl) {
+  formEl.reset();
+  const todayInput = formEl.querySelector('[name="fechaIncidencia"]');
+  if (todayInput && !todayInput.value) {
+    todayInput.value = new Date().toISOString().slice(0, 10);
+  }
+}
+
+async function openNonGratosDialog() {
+  const existing = document.getElementById(NON_GRATOS_DIALOG_OVERLAY_ID);
+  if (existing) {
+    existing.remove();
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = NON_GRATOS_DIALOG_OVERLAY_ID;
+  overlay.className = 'cloudbeds-non-gratos-overlay';
+
+  const dialog = document.createElement('div');
+  dialog.className = 'cloudbeds-non-gratos-dialog';
+
+  dialog.innerHTML = `
+    <div class="cloudbeds-non-gratos-header">
+      <h3>Gestion de Non Gratos</h3>
+      <button type="button" class="cloudbeds-non-gratos-close" aria-label="Cerrar">×</button>
+    </div>
+    <p class="cloudbeds-non-gratos-subtitle">Anade, edita o elimina huespedes con incidencia registrada.</p>
+    <div class="cloudbeds-non-gratos-toolbar">
+      <button type="button" class="cloudbeds-non-gratos-primary" data-action="show-create-form">+ Anadir uno nuevo</button>
+    </div>
+    <div class="cloudbeds-non-gratos-message"></div>
+    <form class="cloudbeds-non-gratos-form is-hidden">
+      <div class="cloudbeds-non-gratos-grid">
+        <label>
+          <span>Nombre</span>
+          <input type="text" name="nombre" required placeholder="Nombre y apellidos" maxlength="120">
+        </label>
+        <label>
+          <span>DNI / NIE</span>
+          <input type="text" name="dni" required placeholder="Documento" maxlength="24">
+        </label>
+        <label>
+          <span>Fecha de incidencia</span>
+          <input type="date" name="fechaIncidencia" required>
+        </label>
+      </div>
+      <label class="cloudbeds-non-gratos-motivo">
+        <span>Motivo</span>
+        <textarea name="motivo" required rows="3" maxlength="500" placeholder="Describe el motivo de la incidencia"></textarea>
+      </label>
+      <div class="cloudbeds-non-gratos-actions">
+        <button type="submit" class="cloudbeds-non-gratos-primary">Anadir</button>
+        <button type="button" class="cloudbeds-non-gratos-secondary" data-action="cancel-edit">Cancelar edicion</button>
+      </div>
+    </form>
+    <div class="cloudbeds-non-gratos-table-wrap">
+      <table class="cloudbeds-non-gratos-table">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>DNI</th>
+            <th>Fecha</th>
+            <th>Motivo</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="cloudbeds-non-gratos-empty">No hay registros de non gratos.</div>
+    </div>
+  `;
+
+  overlay.appendChild(dialog);
+  document.body.appendChild(overlay);
+
+  const closeBtn = dialog.querySelector('.cloudbeds-non-gratos-close');
+  const showCreateFormBtn = dialog.querySelector('[data-action="show-create-form"]');
+  const form = dialog.querySelector('.cloudbeds-non-gratos-form');
+  const submitBtn = form.querySelector('.cloudbeds-non-gratos-primary');
+  const cancelEditBtn = dialog.querySelector('[data-action="cancel-edit"]');
+  const messageEl = dialog.querySelector('.cloudbeds-non-gratos-message');
+  const tbody = dialog.querySelector('tbody');
+  const emptyState = dialog.querySelector('.cloudbeds-non-gratos-empty');
+
+  let nonGratos = await getNonGratos();
+  let editingId = null;
+
+  const setFormVisibility = (visible) => {
+    form.classList.toggle('is-hidden', !visible);
+  };
+
+  const closeDialog = () => {
+    overlay.remove();
+  };
+
+  const setEditingMode = (record) => {
+    editingId = record ? record.id : null;
+    submitBtn.textContent = editingId ? 'Guardar cambios' : 'Anadir';
+    cancelEditBtn.disabled = !editingId;
+
+    if (!record) {
+      resetNonGratoForm(form);
+      setFormVisibility(false);
+      return;
+    }
+
+    setFormVisibility(true);
+    form.nombre.value = record.nombre || '';
+    form.dni.value = record.dni || '';
+    form.fechaIncidencia.value = (record.fechaIncidencia || '').slice(0, 10);
+    form.motivo.value = record.motivo || '';
+  };
+
+  const renderRows = () => {
+    tbody.innerHTML = '';
+
+    if (nonGratos.length === 0) {
+      emptyState.style.display = 'block';
+      return;
+    }
+
+    emptyState.style.display = 'none';
+    nonGratos
+      .slice()
+      .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')))
+      .forEach(record => {
+        const row = document.createElement('tr');
+
+        const nameCell = document.createElement('td');
+        nameCell.textContent = record.nombre || '-';
+
+        const dniCell = document.createElement('td');
+        dniCell.textContent = record.dni || '-';
+
+        const dateCell = document.createElement('td');
+        dateCell.textContent = formatNonGratoDate(record.fechaIncidencia);
+
+        const reasonCell = document.createElement('td');
+        reasonCell.textContent = record.motivo || '-';
+
+        const actionsCell = document.createElement('td');
+        actionsCell.className = 'cloudbeds-non-gratos-row-actions';
+
+        const editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.dataset.action = 'edit';
+        editBtn.dataset.id = record.id;
+        editBtn.className = 'cloudbeds-non-gratos-row-btn';
+        editBtn.textContent = 'Editar';
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.dataset.action = 'delete';
+        deleteBtn.dataset.id = record.id;
+        deleteBtn.className = 'cloudbeds-non-gratos-row-btn danger';
+        deleteBtn.textContent = 'Eliminar';
+
+        actionsCell.appendChild(editBtn);
+        actionsCell.appendChild(deleteBtn);
+
+        row.appendChild(nameCell);
+        row.appendChild(dniCell);
+        row.appendChild(dateCell);
+        row.appendChild(reasonCell);
+        row.appendChild(actionsCell);
+        tbody.appendChild(row);
+      });
+  };
+
+  setEditingMode(null);
+  renderRows();
+
+  closeBtn.addEventListener('click', closeDialog);
+  showCreateFormBtn.addEventListener('click', () => {
+    clearNonGratoDialogMessage(messageEl);
+    editingId = null;
+    submitBtn.textContent = 'Anadir';
+    cancelEditBtn.disabled = false;
+    resetNonGratoForm(form);
+    setFormVisibility(true);
+    form.nombre.focus();
+  });
+  overlay.addEventListener('click', (event) => {
+    if (event.target === overlay) {
+      closeDialog();
+    }
+  });
+
+  cancelEditBtn.addEventListener('click', () => {
+    clearNonGratoDialogMessage(messageEl);
+    setEditingMode(null);
+  });
+
+  tbody.addEventListener('click', async (event) => {
+    const actionBtn = event.target.closest('button[data-action]');
+    if (!actionBtn) {
+      return;
+    }
+
+    const action = actionBtn.dataset.action;
+    const recordId = actionBtn.dataset.id;
+    const record = nonGratos.find(item => item.id === recordId);
+    if (!record) {
+      return;
+    }
+
+    if (action === 'edit') {
+      setEditingMode(record);
+      clearNonGratoDialogMessage(messageEl);
+      return;
+    }
+
+    if (action === 'delete') {
+      const confirmed = window.confirm(`Eliminar a ${record.nombre} de Non Gratos?`);
+      if (!confirmed) {
+        return;
+      }
+
+      nonGratos = nonGratos.filter(item => item.id !== recordId);
+      await saveNonGratos(nonGratos);
+      if (editingId === recordId) {
+        setEditingMode(null);
+      }
+      renderRows();
+      showNonGratoDialogMessage(messageEl, 'Registro eliminado', 'success');
+    }
+  });
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const nombre = form.nombre.value.trim();
+    const dniRaw = form.dni.value.trim();
+    const dni = normalizeDni(dniRaw);
+    const motivo = form.motivo.value.trim();
+    const fechaIncidencia = form.fechaIncidencia.value;
+
+    if (!nombre || !dni || !motivo || !fechaIncidencia) {
+      showNonGratoDialogMessage(messageEl, 'Completa todos los campos obligatorios', 'error');
+      return;
+    }
+
+    const duplicate = nonGratos.find(item => normalizeDni(item.dni) === dni && item.id !== editingId);
+    if (duplicate) {
+      showNonGratoDialogMessage(messageEl, 'Ya existe un registro con ese DNI/NIE', 'error');
+      return;
+    }
+
+    if (editingId) {
+      nonGratos = nonGratos.map(item => {
+        if (item.id !== editingId) {
+          return item;
+        }
+
+        return {
+          ...item,
+          nombre,
+          dni,
+          motivo,
+          fechaIncidencia,
+          updatedAt: new Date().toISOString()
+        };
+      });
+      showNonGratoDialogMessage(messageEl, 'Registro actualizado', 'success');
+    } else {
+      nonGratos.push({
+        id: createNonGratoId(),
+        nombre,
+        dni,
+        motivo,
+        fechaIncidencia,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      showNonGratoDialogMessage(messageEl, 'Registro anadido', 'success');
+    }
+
+    await saveNonGratos(nonGratos);
+    setEditingMode(null);
+    renderRows();
+  });
 }
 
 // Buscar y hacer clic en el botón de edición
@@ -1365,9 +1922,7 @@ function enableDocumentFields() {
 }
 
 // Mostrar notificación visual (DESACTIVADA)
-/*
-function showNotification(message) {
-  // Eliminar notificación anterior si existe
+function showNotification(message, type = 'success') {
   const existing = document.getElementById('cloudbeds-scanner-notification');
   if (existing) {
     existing.remove();
@@ -1375,24 +1930,22 @@ function showNotification(message) {
 
   const notification = document.createElement('div');
   notification.id = 'cloudbeds-scanner-notification';
+  notification.className = `type-${type}`;
   notification.textContent = message;
-  
+
   document.body.appendChild(notification);
 
-  // Forzar clase show para animar
   setTimeout(() => {
     notification.classList.add('show');
   }, 10);
 
-  // Eliminar después de 3 segundos
   setTimeout(() => {
     notification.classList.remove('show');
     setTimeout(() => {
       notification.remove();
     }, 300);
-  }, 3000);
+  }, 3500);
 }
-*/
 
 // Función auxiliar para esperar
 function sleep(ms) {
