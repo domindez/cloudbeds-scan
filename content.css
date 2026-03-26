@@ -166,7 +166,9 @@
 	letter-spacing: 0.2px;
 	cursor: pointer;
 	box-shadow: 0 8px 20px rgba(185, 28, 28, 0.3);
-	transition: transform 0.2s ease, box-shadow 0.2s ease;
+	transition:
+		transform 0.2s ease,
+		box-shadow 0.2s ease;
 }
 
 .cloudbeds-non-gratos-floating-btn:hover,
@@ -523,7 +525,9 @@
 	font-size: 13px;
 	font-weight: 700;
 	cursor: pointer;
-	transition: transform 0.2s ease, box-shadow 0.2s ease;
+	transition:
+		transform 0.2s ease,
+		box-shadow 0.2s ease;
 	box-shadow: 0 6px 14px rgba(180, 83, 9, 0.32);
 }
 
