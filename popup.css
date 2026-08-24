@@ -1043,6 +1043,43 @@ input:focus {
 	box-shadow: 0 0 0 3px var(--primary-light);
 }
 
+.cruces-room-types {
+	margin-bottom: 20px;
+}
+
+.cruces-room-types .settings-hint {
+	margin-top: 0;
+}
+
+.cruces-room-types-list {
+	margin-top: 12px;
+	max-height: 200px;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.cruces-room-types-list .checkbox-label {
+	padding: 10px 12px;
+	background: var(--bg-secondary);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-sm);
+}
+
+.cruces-room-types-list .checkbox-label:hover {
+	border-color: var(--primary);
+}
+
+.cruces-room-types-list .checkbox-label span {
+	font-size: 13px;
+	word-break: break-word;
+}
+
+#crucesRoomTypesStatus {
+	margin-top: 8px;
+}
+
 .cruces-info {
 	margin-top: 24px;
 	padding: 16px;

@@ -55,30 +55,30 @@ function extractDataFromPage(selectedDate) {
     const roomTypeContainers = document.querySelectorAll('.c-rt-and-rooms');
     
     roomTypeContainers.forEach(container => {
-      const typeHeader = container.querySelector('.c-collaps');
-      if (!typeHeader) return;
-
-      const roomTypeName = typeHeader.textContent.trim();
-      const roomTypeId = typeHeader.getAttribute('data-rt-id');
-      
-      const rooms = [];
-      const roomElements = container.querySelectorAll('.c-room');
-      
-      roomElements.forEach(roomEl => {
-        const roomNumber = roomEl.textContent.trim();
-        const roomId = roomEl.getAttribute('data-room-id');
+      container.querySelectorAll('.c-collaps').forEach(typeHeader => {
+        const roomTypeName = typeHeader.textContent.trim();
+        const roomTypeId = typeHeader.getAttribute('data-rt-id');
         
-        rooms.push({
-          number: roomNumber,
-          id: roomId,
-          floor: roomNumber.charAt(0) // Primera cifra es la planta
+        const rooms = [];
+        const roomsContainer = typeHeader.nextElementSibling;
+        const roomElements = roomsContainer ? roomsContainer.querySelectorAll('.c-room') : [];
+        
+        roomElements.forEach(roomEl => {
+          const roomNumber = roomEl.textContent.trim();
+          const roomId = roomEl.getAttribute('data-room-id');
+          
+          rooms.push({
+            number: roomNumber,
+            id: roomId,
+            floor: roomNumber.charAt(0) // Primera cifra es la planta
+          });
         });
-      });
 
-      data.roomTypes.push({
-        name: roomTypeName,
-        id: roomTypeId,
-        rooms: rooms
+        data.roomTypes.push({
+          name: roomTypeName,
+          id: roomTypeId,
+          rooms: rooms
+        });
       });
     });
 
@@ -127,15 +127,88 @@ function extractDataFromPage(selectedDate) {
   }
 }
 
+// Extraer solo los tipos de habitación del calendario de Cloudbeds
+async function getCalendarRoomTypes() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    if (!tab.url?.includes('cloudbeds.com')) {
+      throw new Error('Debes estar en la página de Cloudbeds');
+    }
+
+    // Inyectar script en la página para extraer los tipos de habitación
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: extractRoomTypesFromPage
+    });
+
+    if (!results || !results[0] || !results[0].result) {
+      throw new Error('No se pudieron extraer los tipos de habitación');
+    }
+
+    const roomTypes = results[0].result;
+    if (roomTypes.error) {
+      throw new Error(
+        roomTypes.error === 'calendar_not_found'
+          ? 'Por favor, abre el calendario de Cloudbeds antes de generar el Excel'
+          : roomTypes.error
+      );
+    }
+
+    return roomTypes;
+  } catch (error) {
+    console.error('Error al extraer tipos de habitación:', error);
+    throw error;
+  }
+}
+
+// Función que se ejecuta en el contexto de la página de Cloudbeds
+function extractRoomTypesFromPage() {
+  try {
+    const calendarElement = document.querySelector('.c-rt-and-rooms');
+    if (!calendarElement) {
+      return { error: 'calendar_not_found' };
+    }
+
+    const roomTypes = [];
+
+    document.querySelectorAll('.c-rt-and-rooms').forEach(container => {
+      container.querySelectorAll('.c-collaps').forEach(typeHeader => {
+        const name = typeHeader.textContent.trim();
+        const id = typeHeader.getAttribute('data-rt-id');
+
+        roomTypes.push({
+          id: id,
+          name: name,
+          key: id || name
+        });
+      });
+    });
+
+    return roomTypes;
+  } catch (error) {
+    console.error('Error en extractRoomTypesFromPage:', error);
+    return { error: error.message };
+  }
+}
+
 // Procesar datos para determinar estado de cada habitación en la fecha seleccionada
-function processRoomStatus(calendarData, selectedDate) {
+function processRoomStatus(calendarData, selectedDate, selectedRoomTypeIds) {
   const selectedDateObj = new Date(selectedDate);
   const previousDate = new Date(selectedDate);
   previousDate.setDate(previousDate.getDate() - 1);
-  
+
+  const allowedTypes =
+    selectedRoomTypeIds && selectedRoomTypeIds.length > 0
+      ? new Set(selectedRoomTypeIds)
+      : null;
+
   const roomsByFloor = {};
 
   calendarData.roomTypes.forEach(roomType => {
+    const roomTypeKey = roomType.id || roomType.name;
+    if (allowedTypes && !allowedTypes.has(roomTypeKey)) return;
+
     roomType.rooms.forEach(room => {
       const floor = room.floor;
       
@@ -356,7 +429,7 @@ async function generateExcel(roomsByFloor, selectedDate) {
 }
 
 // Función principal para generar el papel de cruces
-async function generatePapelCruces(selectedDate) {
+async function generatePapelCruces(selectedDate, selectedRoomTypeIds) {
   try {
     // Validar fecha
     if (!selectedDate) {
@@ -371,7 +444,7 @@ async function generatePapelCruces(selectedDate) {
     }
 
     // Procesar datos
-    const roomsByFloor = processRoomStatus(calendarData, selectedDate);
+    const roomsByFloor = processRoomStatus(calendarData, selectedDate, selectedRoomTypeIds);
 
     // Generar Excel
     generateExcel(roomsByFloor, selectedDate);
@@ -385,5 +458,5 @@ async function generatePapelCruces(selectedDate) {
 
 // Exportar para uso en popup.js
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { generatePapelCruces };
+  module.exports = { generatePapelCruces, getCalendarRoomTypes };
 }

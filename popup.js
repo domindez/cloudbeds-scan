@@ -2096,6 +2096,90 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// Cargar tipos de habitación al abrir la pestaña de cruces (solo si aún no se han cargado)
+document.querySelectorAll('.tab[data-tab="cruces"]').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const listEl = document.getElementById('crucesRoomTypesList');
+    if (listEl && listEl.querySelectorAll('input[type="checkbox"]').length === 0) {
+      setTimeout(loadCrucesRoomTypes, 50);
+    }
+  });
+});
+
+// Cargar los tipos de habitación desde el calendario de Cloudbeds
+async function loadCrucesRoomTypes() {
+  const listEl = document.getElementById('crucesRoomTypesList');
+  const statusEl = document.getElementById('crucesRoomTypesStatus');
+
+  showCrucesRoomTypesStatus('Extrayendo tipos de habitación del calendario...', 'info');
+
+  try {
+    const roomTypes = await getCalendarRoomTypes();
+
+    if (!roomTypes || roomTypes.length === 0) {
+      throw new Error('No se encontraron tipos de habitación en el calendario');
+    }
+
+    renderCrucesRoomTypes(roomTypes);
+    showCrucesRoomTypesStatus('', 'hide');
+  } catch (error) {
+    if (listEl) listEl.innerHTML = '';
+    showCrucesRoomTypesStatus(`❌ ${error.message}`, 'error');
+  }
+}
+
+// Renderizar los checkboxes de tipos de habitación (todos marcados por defecto excepto "parking")
+function renderCrucesRoomTypes(roomTypes) {
+  const listEl = document.getElementById('crucesRoomTypesList');
+  if (!listEl) return;
+
+  listEl.innerHTML = '';
+
+  roomTypes.forEach(roomType => {
+    const label = document.createElement('label');
+    label.className = 'checkbox-label';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.value = roomType.key;
+    checkbox.checked = !/parking/i.test(roomType.name);
+    checkbox.dataset.roomTypeName = roomType.name;
+
+    const span = document.createElement('span');
+    span.textContent = roomType.name;
+
+    label.appendChild(checkbox);
+    label.appendChild(span);
+    listEl.appendChild(label);
+  });
+}
+
+// Obtener los ids de los tipos de habitación marcados
+function getSelectedCrucesRoomTypeIds() {
+  const checkboxes = document.querySelectorAll('#crucesRoomTypesList input[type="checkbox"]');
+  const selected = [];
+  checkboxes.forEach(cb => {
+    if (cb.checked) selected.push(cb.value);
+  });
+  return selected;
+}
+
+function showCrucesRoomTypesStatus(message, type) {
+  const statusEl = document.getElementById('crucesRoomTypesStatus');
+  if (!statusEl) return;
+
+  statusEl.textContent = message;
+  statusEl.className = 'status';
+
+  if (type === 'success') {
+    statusEl.classList.add('success');
+  } else if (type === 'error') {
+    statusEl.classList.add('error');
+  } else if (type === 'hide') {
+    statusEl.classList.add('hidden');
+  }
+}
+
 // Botón para generar el papel de cruces
 const generateCrucesBtn = document.getElementById('generateCrucesBtn');
 const crucesStatus = document.getElementById('crucesStatus');
@@ -2112,13 +2196,21 @@ if (generateCrucesBtn) {
         return;
       }
 
+      // Comprobar que se haya seleccionado al menos un tipo de habitación (si ya se cargaron)
+      const selectedRoomTypeIds = getSelectedCrucesRoomTypeIds();
+      const roomTypeCheckboxes = document.querySelectorAll('#crucesRoomTypesList input[type="checkbox"]');
+      if (roomTypeCheckboxes.length > 0 && selectedRoomTypeIds.length === 0) {
+        showCrucesStatus('Selecciona al menos un tipo de habitación', 'error');
+        return;
+      }
+
       // Deshabilitar botón y mostrar loading
       generateCrucesBtn.disabled = true;
       generateCrucesBtn.innerHTML = '⏳ Generando...';
       showCrucesStatus('Extrayendo datos del calendario...', 'info');
 
       // Generar el papel de cruces
-      await generatePapelCruces(selectedDate);
+      await generatePapelCruces(selectedDate, selectedRoomTypeIds);
 
       // Éxito
       showCrucesStatus('✅ Excel generado correctamente', 'success');
