@@ -116,16 +116,31 @@ function parseBookingPrices(html) {
 			3: []
 		};
 		
+		// Detectar la ocupación de una fila
+		// Algunos hoteles (ej. Carlos I) no tienen la celda .hprt-table-cell-occupancy;
+		// en su lugar muestran "Capacidad: X adultos" como texto dentro de la fila
+		const getRowOccupancy = (row) => {
+			// Método 1: celda clásica con iconos de ocupación
+			const occupancyCell = row.querySelector('.hprt-table-cell-occupancy');
+			if (occupancyCell) {
+				const icons = occupancyCell.querySelectorAll('.bicon-occupancy').length;
+				if (icons >= 1 && icons <= 3) return icons;
+			}
+			
+			// Método 2: texto "Capacidad: X adultos/huéspedes" en la fila
+			const capMatch = row.textContent.match(/(?:Capacidad|Capacity):\s*(\d+)\s*(?:adultos?|adults?|hu[eé]spedes?|guests?)/i);
+			if (capMatch) {
+				const occ = parseInt(capMatch[1], 10);
+				if (occ >= 1 && occ <= 3) return occ;
+			}
+			
+			// Método 3: por defecto asumir 2 (la búsqueda siempre pide group_adults=2)
+			return 2;
+		};
+		
 		roomRows.forEach(row => {
 			try {
-				// Obtener información de ocupación
-				const occupancyCell = row.querySelector('.hprt-table-cell-occupancy');
-				if (!occupancyCell) return;
-				
-				const occupancyIcons = occupancyCell.querySelectorAll('.bicon-occupancy');
-				const occupancy = occupancyIcons.length;
-				
-				if (occupancy < 1 || occupancy > 3) return;
+				const occupancy = getRowOccupancy(row);
 				
 				// Obtener precio
 				const priceCell = row.querySelector('.hprt-table-cell-price');
@@ -229,14 +244,30 @@ function extractPricesFromPage() {
 		const roomRows = roomTable.querySelectorAll('tr[data-block-id]');
 		const pricesByOccupancy = { 1: [], 2: [], 3: [] };
 		
-		roomRows.forEach(row => {
+		// Detectar la ocupación de una fila
+		// Algunos hoteles (ej. Carlos I) no tienen la celda .hprt-table-cell-occupancy;
+		// en su lugar muestran "Capacidad: X adultos" como texto dentro de la fila
+		const getRowOccupancy = (row) => {
+			// Método 1: celda clásica con iconos de ocupación
 			const occupancyCell = row.querySelector('.hprt-table-cell-occupancy');
-			if (!occupancyCell) return;
+			if (occupancyCell) {
+				const icons = occupancyCell.querySelectorAll('.bicon-occupancy').length;
+				if (icons >= 1 && icons <= 3) return icons;
+			}
 			
-			const occupancyIcons = occupancyCell.querySelectorAll('.bicon-occupancy');
-			const occupancy = occupancyIcons.length;
+			// Método 2: texto "Capacidad: X adultos/huéspedes" en la fila
+			const capMatch = row.textContent.match(/(?:Capacidad|Capacity):\s*(\d+)\s*(?:adultos?|adults?|hu[eé]spedes?|guests?)/i);
+			if (capMatch) {
+				const occ = parseInt(capMatch[1], 10);
+				if (occ >= 1 && occ <= 3) return occ;
+			}
 			
-			if (occupancy < 1 || occupancy > 3) return;
+			// Método 3: por defecto asumir 2 (la búsqueda siempre pide group_adults=2)
+			return 2;
+		};
+		
+		roomRows.forEach(row => {
+			const occupancy = getRowOccupancy(row);
 			
 			const priceCell = row.querySelector('.hprt-table-cell-price');
 			if (!priceCell) return;
